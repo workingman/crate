@@ -8,11 +8,22 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+# ---------- restore man pages (~20 MB) ----------
+# Ubuntu's base image strips man pages, locale .mo files, and /usr/share/doc.
+# Keep the locale + doc strips but allow man pages back, so `man <cmd>` works
+# for everything installed below (and for the .deb installs further down).
+RUN printf '%s\n' \
+        'path-exclude=/usr/share/locale/*/LC_MESSAGES/*.mo' \
+        'path-exclude=/usr/share/doc/*' \
+        'path-include=/usr/share/doc/*/copyright' \
+        'path-include=/usr/share/doc/*/changelog.*' \
+        > /etc/dpkg/dpkg.cfg.d/excludes
+
 # ---------- base apt packages ----------
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bash sudo locales ca-certificates gnupg lsb-release apt-transport-https \
         curl wget openssh-client dnsutils iputils-ping iproute2 netcat-openbsd traceroute whois \
-        git vim less tmux htop jq ripgrep fzf tree file unzip zip rsync \
+        git vim less tmux htop jq ripgrep fzf tree file unzip zip rsync man-db \
         python3 python3-pip python3-venv build-essential pkg-config \
     && sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen \
     && locale-gen \
