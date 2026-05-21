@@ -81,8 +81,8 @@ RUN ARCH=$(dpkg --print-architecture) \
     && curl -fsSL -o /usr/local/bin/cloudflared "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}" \
     && chmod +x /usr/local/bin/cloudflared
 
-# ---------- npm globals: wrangler (Cloudflare) + opencode (TUI AI assistant) ----------
-RUN npm install -g --omit=dev wrangler opencode-ai
+# ---------- wrangler (Cloudflare); claude-code + opencode are installed at the very end of the file ----------
+RUN npm install -g --omit=dev wrangler
 
 # ---------- skel files + entrypoint ----------
 RUN mkdir -p /etc/skel-devbox
@@ -115,8 +115,17 @@ RUN set -eux; \
     echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME}; \
     chmod 0440 /etc/sudoers.d/${USERNAME}
 
-ENV HOME=/home/${USERNAME}
 ENV PATH=/home/${USERNAME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# ---------- VOLATILE (last so version bumps cause minimal rebuild) ----------
+# claude-code and opencode ship near-daily. Placed after user creation but before
+# USER directive so the global npm install runs as root. Re-running this layer
+# is the only work needed for a routine "pick up new versions" rebuild.
+# HOME is intentionally NOT set yet here — npm would otherwise write its cache
+# to /home/${USERNAME}/.npm as root and lock the user out of their own home.
+RUN npm install -g --omit=dev @anthropic-ai/claude-code opencode-ai
+
+ENV HOME=/home/${USERNAME}
 WORKDIR /home/${USERNAME}
 USER ${USERNAME}
 
