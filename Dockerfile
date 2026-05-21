@@ -18,6 +18,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && locale-gen \
     && rm -rf /var/lib/apt/lists/*
 
+# ---------- optional: install a corporate CA for TLS-intercepting proxies (Cloudflare WARP, Zscaler, etc.) ----------
+# Provided via BuildKit secret mount so the cert is NEVER copied into the build context
+# (and therefore can't accidentally be committed to a public repo).
+#
+# Usage:  docker build --secret id=corp-ca,src=/path/to/your-corp-ca.pem ...
+# Skipped silently if no secret is provided.
+RUN --mount=type=secret,id=corp-ca,required=false \
+    if [ -s /run/secrets/corp-ca ]; then \
+        cp /run/secrets/corp-ca /usr/local/share/ca-certificates/corp-ca.crt && \
+        update-ca-certificates && \
+        echo "Installed corporate CA cert(s)."; \
+    else \
+        echo "No corp CA secret provided; using default trust store."; \
+    fi
+
 # yq is not in default Ubuntu repos; install Mike Farah's standalone binary (multi-arch).
 RUN ARCH=$(dpkg --print-architecture) \
     && curl -fsSL -o /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${ARCH}" \

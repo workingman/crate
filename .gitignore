@@ -2,3 +2,14 @@
 .tmp/
 *.swp
 *.swo
+
+# Defense-in-depth: never commit certificates or private keys.
+# Corp CA certs are mounted into builds via `docker build --secret`, not copied into the context.
+*.crt
+*.cert
+*.cer
+*.pem
+*.key
+*.p12
+*.pfx
+corp-ca*
