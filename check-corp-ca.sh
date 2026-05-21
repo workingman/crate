@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# Diagnose a corporate CA cert bundle for use with crate-build.
+#
+# Usage:
+#   ./check-corp-ca.sh                            # uses $CRATE_CORP_CA or ~/cloudflare-ca.pem
+#   ./check-corp-ca.sh /path/to/your-ca.pem       # explicit path
+#   CRATE_CORP_CA_TEST_URL=... ./check-corp-ca.sh # override the MITM test endpoint
+#
+# Exits 0 if everything passes, 1 if any check fails.
+
+set -u
+
+cert_path="${1:-${CRATE_CORP_CA:-$HOME/cloudflare-ca.pem}}"
+test_url="${CRATE_CORP_CA_TEST_URL:-https://deb.nodesource.com/setup_lts.x}"
+
+FAIL=0
+PASS=0
+pass()    { printf "  \033[32mPASS\033[0m  %s\n" "$*"; PASS=$((PASS+1)); }
+fail()    { printf "  \033[31mFAIL\033[0m  %s\n" "$*"; FAIL=$((FAIL+1)); }
+info()    { printf "  ----  %s\n" "$*"; }
+section() { printf "\n\033[1m%s\033[0m\n" "$*"; }
+
+section "1. cert file"
+info "path: $cert_path"
+if [ ! -r "$cert_path" ]; then
+    fail "file not readable — set CRATE_CORP_CA or pass a path as the first arg"
+    echo
+    echo "  summary: 0 passed, 1 failed"
+    exit 1
+fi
+pass "readable ($(wc -c < "$cert_path" | tr -d ' ') bytes)"
+
+section "2. cert bundle contents"
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+
+awk -v d="$tmpdir" '
+    /-----BEGIN CERTIFICATE-----/ { n++; out=sprintf("%s/cert.%02d.pem", d, n) }
+    { if (n) print > out }
+    /-----END CERTIFICATE-----/   { out="" }
+' "$cert_path"
+
+shopt -s nullglob
+certs=("$tmpdir"/cert.*.pem)
+if [ ${#certs[@]} -eq 0 ]; then
+    fail "no PEM-encoded certificates found in file — wrong format?"
+    echo
+    echo "  summary: $PASS passed, $((FAIL+1)) failed"
+    exit 1
+fi
+pass "${#certs[@]} certificate(s) parsed"
+
+ca_count=0
+expired_count=0
+for c in "${certs[@]}"; do
+    subj=$(openssl x509 -in "$c" -noout -subject 2>/dev/null | sed 's/^subject= *//')
+    issuer=$(openssl x509 -in "$c" -noout -issuer  2>/dev/null | sed 's/^issuer= *//')
+    not_before=$(openssl x509 -in "$c" -noout -startdate 2>/dev/null | sed 's/^notBefore=//')
+    not_after=$( openssl x509 -in "$c" -noout -enddate   2>/dev/null | sed 's/^notAfter=//')
+    bc=$(openssl x509 -in "$c" -noout -ext basicConstraints 2>/dev/null | tail -1 | tr -d ' ')
+    is_root="leaf"
+    [ "$subj" = "$issuer" ] && is_root="root (self-signed)"
+    [ "$is_root" = "leaf" ] && [ -n "$bc" ] && echo "$bc" | grep -qi 'CA:TRUE' && is_root="intermediate"
+
+    echo
+    printf "  %s — %s\n"   "$(basename "$c")" "$is_root"
+    printf "    subject: %s\n" "$subj"
+    printf "    issuer:  %s\n" "$issuer"
+    printf "    valid:   %s  →  %s\n" "$not_before" "$not_after"
+    printf "    basic:   %s\n" "${bc:-<no basicConstraints extension>}"
+
+    if echo "$bc" | grep -qi 'CA:TRUE'; then
+        ca_count=$((ca_count+1))
+    fi
+    if ! openssl x509 -in "$c" -noout -checkend 0 >/dev/null 2>&1; then
+        expired_count=$((expired_count+1))
+    fi
+done
+
+echo
+if [ "$ca_count" -gt 0 ]; then
+    pass "$ca_count cert(s) marked CA:TRUE"
+else
+    fail "NO certs marked CA:TRUE — file looks like leaf certs, won't be trusted as CAs"
+fi
+if [ "$expired_count" -eq 0 ]; then
+    pass "no expired certificates"
+else
+    fail "$expired_count cert(s) are expired"
+fi
+
+section "3. functional test (curl through whatever MITM proxy is active)"
+info "endpoint: $test_url"
+if curl --cacert "$cert_path" -fsSL -o /dev/null --max-time 15 "$test_url"; then
+    pass "curl successfully trusted the connection — bundle is sufficient for this endpoint"
+else
+    rc=$?
+    fail "curl could not verify the chain (exit $rc)"
+    info "rerun for detail:"
+    info "  curl -v --cacert '$cert_path' '$test_url' 2>&1 | grep -E 'SSL|cert|verify'"
+fi
+
+section "summary"
+echo "  passed: $PASS"
+echo "  failed: $FAIL"
+if [ "$FAIL" -eq 0 ]; then
+    echo "  next:   crate-build"
+    exit 0
+else
+    echo "  fix the above before rebuilding"
+    exit 1
+fi

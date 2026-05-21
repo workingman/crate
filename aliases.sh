@@ -7,6 +7,7 @@
 # `crate-rebuild`   — full no-cache rebuild
 # `crate-versions`  — print versions of major tools in the current image
 # `crate-update`    — pull latest base, no-cache rebuild, show before/after versions
+# `crate-check-ca`  — diagnose the corporate CA cert bundle (file/parse/curl tests)
 #
 # Corp CA: if $CRATE_CORP_CA points to a readable file (default ~/cloudflare-ca.pem),
 # crate-build/rebuild/update pass it via `docker build --secret` so the cert is
@@ -77,6 +78,11 @@ crate-versions() {
         printf "%-13s %s\n" "jq"          "$(jq --version 2>&1)"
         printf "%-13s %s\n" "ripgrep"     "$(rg --version 2>&1 | head -1 | awk "{print \$2}")"
     '
+}
+
+# Diagnose the corporate CA cert bundle (file presence, parse, curl-through-MITM test).
+crate-check-ca() {
+    bash "$CRATE_DIR/check-corp-ca.sh" "$@"
 }
 
 # Pull latest base image + no-cache rebuild + show version delta.
