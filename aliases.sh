@@ -9,6 +9,9 @@
 # `crate-update`    — pull latest base, no-cache rebuild, show before/after versions
 # `crate-check-ca`  — diagnose the corporate CA cert bundle (file/parse/curl tests)
 #
+# The container user is built to match the macOS user: USERNAME=$(whoami), UID=$(id -u),
+# GID=$(id -g). Inside the container you appear as <macuser>@crate with home /home/<macuser>.
+#
 # Corp CA: if $CRATE_CORP_CA points to a readable file (default ~/cloudflare-ca.pem),
 # crate-build/rebuild/update pass it via `docker build --secret` so the cert is
 # installed into the image's trust store without ever entering the build context.
@@ -20,9 +23,9 @@ export CRATE_IMAGE="crate:latest"
 
 alias crate='docker run --rm -it --init \
   --hostname crate \
-  -v "$HOME/docker-home:/home/geoff" \
-  -v "$HOME/dev:/home/geoff/dev" \
-  -w /home/geoff \
+  -v "$HOME/docker-home:/home/$(whoami)" \
+  -v "$HOME/dev:/home/$(whoami)/dev" \
+  -w "/home/$(whoami)" \
   "$CRATE_IMAGE"'
 
 # Internal: emit --secret args if the corp CA file is present.
@@ -41,6 +44,7 @@ crate-build() {
         "${secret_args[@]}" \
         --build-arg UID=$(id -u) \
         --build-arg GID=$(id -g) \
+        --build-arg USERNAME=$(whoami) \
         -t "$CRATE_IMAGE" "$CRATE_DIR"
 }
 
@@ -53,6 +57,7 @@ crate-rebuild() {
         "${secret_args[@]}" \
         --build-arg UID=$(id -u) \
         --build-arg GID=$(id -g) \
+        --build-arg USERNAME=$(whoami) \
         -t "$CRATE_IMAGE" "$CRATE_DIR"
 }
 
@@ -101,6 +106,7 @@ crate-update() {
         "${secret_args[@]}" \
         --build-arg UID=$(id -u) \
         --build-arg GID=$(id -g) \
+        --build-arg USERNAME=$(whoami) \
         -t "$CRATE_IMAGE" "$CRATE_DIR" || return 1
     echo
 
