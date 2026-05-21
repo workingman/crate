@@ -1,0 +1,47 @@
+# Default ~/.bashrc seeded by devbox entrypoint on first run.
+# Edits here persist across image rebuilds (file is only created if missing).
+# For local tweaks that survive even a wipe-and-reseed, put them in ~/.bashrc.local.
+
+# Skip if non-interactive.
+case $- in
+    *i*) ;;
+      *) return ;;
+esac
+
+# Append-mode history sized for serious use.
+HISTSIZE=50000
+HISTFILESIZE=100000
+HISTCONTROL=ignoredups:erasedups
+HISTTIMEFORMAT='%F %T  '
+shopt -s histappend
+shopt -s checkwinsize
+shopt -s cmdhist
+
+# Share history across parallel `box` sessions: every prompt appends to the
+# file and reloads new entries. O_APPEND writes are atomic under PIPE_BUF, so
+# no locking is needed.
+PROMPT_COMMAND='history -a; history -c; history -r; '"${PROMPT_COMMAND:-}"
+
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
+export CLICOLOR=1
+export LESS='-R'
+[ -x /usr/bin/dircolors ] && eval "$(dircolors -b)"
+
+PS1='\[\e[01;32m\]\u@\h\[\e[00m\]:\[\e[01;34m\]\w\[\e[00m\]\$ '
+
+alias ll='ls -alFh --color=auto'
+alias la='ls -A --color=auto'
+alias l='ls -CF --color=auto'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias grep='grep --color=auto'
+
+export EDITOR=vim
+export VISUAL=vim
+
+# Local override hook.
+[ -f "$HOME/.bashrc.local" ] && . "$HOME/.bashrc.local"

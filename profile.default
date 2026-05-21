@@ -1,0 +1,16 @@
+# Default ~/.profile seeded by devbox entrypoint on first run.
+# Read by login shells; chains into ~/.bashrc for interactive bash.
+
+if [ -n "${BASH_VERSION:-}" ] && [ -f "$HOME/.bashrc" ]; then
+    . "$HOME/.bashrc"
+fi
+
+# Ensure ~/.local/bin is on PATH for non-interactive shells too.
+if [ -d "$HOME/.local/bin" ]; then
+    case ":$PATH:" in
+        *":$HOME/.local/bin:"*) ;;
+        *) PATH="$HOME/.local/bin:$PATH" ;;
+    esac
+fi
+
+export PATH
