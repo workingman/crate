@@ -94,6 +94,14 @@ RUN curl -fsSL "https://pkgs.k8s.io/core:/stable:/${K8S_MINOR}/deb/Release.key" 
 # ---------- helm ----------
 RUN curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
+# ---------- Google Cloud CLI ----------
+RUN curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+         | gpg --dearmor -o /etc/apt/keyrings/cloud.google.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+         > /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && apt-get update && apt-get install -y --no-install-recommends google-cloud-cli \
+    && rm -rf /var/lib/apt/lists/*
+
 # ---------- cloudflared (Cloudflare Tunnel client) ----------
 RUN ARCH=$(dpkg --print-architecture) \
     && curl -fsSL -o /usr/local/bin/cloudflared "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}" \
