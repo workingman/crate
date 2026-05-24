@@ -51,7 +51,7 @@ For tools that don't use a local callback server, use these flags to print a URL
 
 | Tool | Headless flag | Notes |
 |---|---|---|
-| `gcloud auth login` | `--no-launch-browser` | Prints a URL; paste auth code back at the prompt |
+| `gcloud auth login` | `--no-launch-browser` | Prints a URL → open in Mac browser → Google shows an auth code → paste it back at the prompt |
 | `gh auth login` | *(interactive by default)* | Choose "Login with a web browser" — prints a one-time code, paste it after visiting the URL |
 | `terraform login` | *(no flag needed)* | Already uses device flow; prints URL + code, works headless out of the box |
 
