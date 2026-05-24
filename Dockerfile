@@ -14,7 +14,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # `unminimize` is Ubuntu's official path to undo all of that — it rewrites the
 # dpkg path-exclude rules, reinstalls everything, restores the real man-db,
 # and rebuilds the mandb index. Costs ~50-100 MB; worth it for working docs.
-RUN yes | unminimize && rm -rf /var/lib/apt/lists/*
+RUN yes 2>/dev/null | unminimize; rm -rf /var/lib/apt/lists/*
 
 # ---------- base apt packages ----------
 RUN apt-get update && apt-get install -y --no-install-recommends \
