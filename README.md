@@ -5,15 +5,15 @@ Personal Linux workstation container. Ubuntu 24.04 base with a curated set of de
 ## Architecture
 
 crate runs as a **persistent singleton**: one long-lived container, started at Mac login via launchd.
-Each Ghostty window attaches to it with `docker exec` (via the `box` script). Multiple windows share
+Each Ghostty window attaches to it with `docker exec` (via the `crate-connect` script). Multiple windows share
 the same container — no port conflicts, no ephemeral containers, no tmux required.
 
 ```
 Mac login
   → launchd starts crate container (docker compose up -d)
-  → Ghostty window 1:  box  →  docker exec -it crate bash -l
-  → Ghostty window 2:  box  →  docker exec -it crate bash -l
-  → Ghostty window N:  box  →  docker exec -it crate bash -l
+  → Ghostty window 1:  crate-connect  →  docker exec -it crate bash -l
+  → Ghostty window 2:  crate-connect  →  docker exec -it crate bash -l
+  → Ghostty window N:  crate-connect  →  docker exec -it crate bash -l
 ```
 
 Ports `8976` (wrangler) and `19876` (opencode MCP) are bound once at container start. All windows
@@ -56,8 +56,8 @@ keeps it alive if it crashes between logins.
 bash setup-ghostty.sh
 ```
 
-This writes `~/.config/ghostty/config` pointing at the `box` script. Each new Ghostty window
-runs `box`, which does `docker exec -it crate bash -l`.
+This writes `~/.config/ghostty/config` pointing at the `crate-connect` script. Each new Ghostty window
+runs `crate-connect`, which does `docker exec -it crate bash -l`.
 
 ### 4. Start the container now (without rebooting)
 
@@ -73,7 +73,7 @@ Then open Ghostty. You should land at `crate@crate:~$`.
 
 | Action | Command |
 |---|---|
-| Open a new terminal in crate | Open a new Ghostty window — `box` runs automatically |
+| Open a new terminal in crate | Open a new Ghostty window — `crate-connect` runs automatically |
 | Start container manually | `docker compose up -d` (from `~/dev/crate`) |
 | Stop container | `docker compose down` |
 | Restart container | `docker compose restart` |

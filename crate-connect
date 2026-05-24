@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# box — open a shell in the crate singleton container.
+# crate-connect — connect to the crate singleton container.
 #
-# Usage: box [shell-args...]
+# Usage: crate-connect [shell-args...]
 #   Opens a new interactive bash session in the running crate container.
-#   Multiple Ghostty windows can each run `box` independently — they all
-#   attach to the same container with no port conflicts.
+#   Multiple Ghostty windows can each run crate-connect independently — they
+#   all attach to the same container with no port conflicts.
 #
 # If the container isn't running yet (e.g., called before launchd fires),
 # this script brings it up first.
@@ -28,6 +28,6 @@ if ! "$DOCKER" inspect --format '{{.State.Running}}' "$CONTAINER" 2>/dev/null | 
     sleep 1
 fi
 
-# Attach a new interactive shell. Each call to `box` creates an independent
+# Attach a new interactive shell. Each call creates an independent
 # shell session; closing one window does not affect others.
 exec "$DOCKER" exec -it "$CONTAINER" bash -l "$@"
