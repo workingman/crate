@@ -1,7 +1,7 @@
 # Personal Linux workstation image.
 # See twinkling-yawning-crown.md plan for design notes.
-# Build:  docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t devbox:latest .
-# Run:    docker run --rm -it -v ~/docker-home:/home/geoff -v ~/dev:/home/geoff/dev devbox:latest
+# Build:  echo "UID=$(id -u)" > .env && echo "GID=$(id -g)" >> .env && docker compose build
+# Run:    docker compose run --rm crate
 
 FROM ubuntu:24.04
 
@@ -102,7 +102,7 @@ RUN chmod 0755 /usr/local/bin/entrypoint.sh
 # ---------- user (build args last so UID/GID changes don't bust upstream cache) ----------
 ARG UID=501
 ARG GID=20
-ARG USERNAME=geoff
+ARG USERNAME=crate
 
 # Handle GID-already-exists case (Ubuntu's 'dialout' = GID 20):
 #   - If a group with the requested GID exists, rename it to USERNAME.

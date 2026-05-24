@@ -1,0 +1,20 @@
+services:
+  crate:
+    build:
+      context: .
+      args:
+        UID: ${UID}
+        GID: ${GID}
+        USERNAME: crate
+    image: crate:latest
+    hostname: crate
+    stdin_open: true
+    tty: true
+    init: true
+    ports:
+      - "127.0.0.1:19876:19876"   # opencode MCP OAuth callback
+      - "127.0.0.1:8976:8976"     # wrangler login callback
+    volumes:
+      - ~/docker-home:/home/crate
+      - ~/dev:/home/crate/dev
+    working_dir: /home/crate
