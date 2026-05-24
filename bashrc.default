@@ -1,6 +1,6 @@
-# Default ~/.bashrc seeded by devbox entrypoint on first run.
-# Edits here persist across image rebuilds (file is only created if missing).
-# For local tweaks that survive even a wipe-and-reseed, put them in ~/.bashrc.local.
+# Image defaults — sourced by ~/.bashrc on every shell start.
+# DO NOT EDIT ~/.bashrc — it is overwritten on every container start.
+# Put personal customizations in ~/.bashrc.local instead.
 
 # Skip if non-interactive.
 case $- in
@@ -46,5 +46,4 @@ alias wl='wrangler login --callback-host 0.0.0.0'
 export EDITOR=vim
 export VISUAL=vim
 
-# Local override hook.
-[ -f "$HOME/.bashrc.local" ] && . "$HOME/.bashrc.local"
+# Personal overrides go in ~/.bashrc.local — sourced by ~/.bashrc after this file.
