@@ -134,6 +134,7 @@ RUN chmod 0755 /usr/local/bin/xdg-open
 RUN mkdir -p /etc/skel-devbox
 COPY bashrc.default   /etc/skel-devbox/bashrc.default
 COPY profile.default  /etc/skel-devbox/profile.default
+COPY tui.json         /etc/skel-devbox/tui.json
 COPY entrypoint.sh    /usr/local/bin/entrypoint.sh
 RUN chmod 0755 /usr/local/bin/entrypoint.sh
 

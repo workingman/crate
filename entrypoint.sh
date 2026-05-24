@@ -27,6 +27,10 @@ if [ ! -e "$HOME/.profile" ] && [ -f "$SKEL/profile.default" ]; then
     cp "$SKEL/profile.default" "$HOME/.profile"
 fi
 
+# Always write opencode tui.json — image is authoritative for TUI defaults.
+mkdir -p "$HOME/.config/opencode"
+cp "$SKEL/tui.json" "$HOME/.config/opencode/tui.json"
+
 mkdir -p "$HOME/.local/bin" "$HOME/.config"
 mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
 
