@@ -81,18 +81,6 @@ RUN curl -fsSL https://apt.releases.hashicorp.com/gpg \
     && apt-get update && apt-get install -y --no-install-recommends terraform \
     && rm -rf /var/lib/apt/lists/*
 
-# ---------- kubectl (Kubernetes apt repo) ----------
-# Pin to a stable minor; bump as needed. kubectl is forward-compatible across most operations.
-ARG K8S_MINOR=v1.32
-RUN curl -fsSL "https://pkgs.k8s.io/core:/stable:/${K8S_MINOR}/deb/Release.key" \
-         | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${K8S_MINOR}/deb/ /" \
-         > /etc/apt/sources.list.d/kubernetes.list \
-    && apt-get update && apt-get install -y --no-install-recommends kubectl \
-    && rm -rf /var/lib/apt/lists/*
-
-# ---------- helm ----------
-RUN curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 # ---------- Google Cloud CLI ----------
 RUN curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
@@ -106,6 +94,10 @@ RUN curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
 RUN ARCH=$(dpkg --print-architecture) \
     && curl -fsSL -o /usr/local/bin/cloudflared "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}" \
     && chmod +x /usr/local/bin/cloudflared
+
+# ---------- rclone ----------
+# Swiss-army knife for cloud storage — native R2, GCS, S3 support. Great for demos.
+RUN curl -fsSL https://rclone.org/install.sh | bash
 
 # ---------- wrangler (Cloudflare); claude-code + opencode are installed at the very end of the file ----------
 RUN npm install -g --omit=dev wrangler

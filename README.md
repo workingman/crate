@@ -78,9 +78,8 @@ The cert is injected via BuildKit secret — never copied into the image layer. 
 - **Wrangler** (Cloudflare Workers CLI)
 - **GitHub CLI** (`gh`)
 - **Terraform**
-- **kubectl** (pinned minor via `K8S_MINOR` build arg, default `v1.32`)
-- **Helm**
 - **cloudflared** (Cloudflare Tunnel client)
+- **rclone** (cloud storage CLI — native R2, GCS, S3 support)
 - **claude-code** + **opencode-ai**
 - **yq** (Mike Farah's YAML processor)
 - Standard utilities: `git`, `vim`, `tmux`, `htop`, `jq`, `ripgrep`, `fzf`, `tree`, and friends
