@@ -8,14 +8,23 @@ Personal Linux workstation container. Ubuntu 24.04 base with a curated set of de
 # First time (or after UID/GID changes):
 echo "UID=$(id -u)" > .env && echo "GID=$(id -g)" >> .env
 
-# Build:
+# Build (no corporate CA):
 docker compose build
+
+# Build (with corporate CA — required when behind Cloudflare WARP / TLS inspection):
+# docker compose does NOT support --secret; use docker build directly.
+docker build \
+  --secret id=corp-ca,src=/Users/groutledge/cloudflare-ca.pem \
+  --build-arg UID=$(id -u) --build-arg GID=$(id -g) \
+  -t crate:latest .
 
 # Run:
 docker compose run --rm crate
 ```
 
 Home directory is persisted via `~/docker-home` volume mount. `~/dev` is mounted at `/home/crate/dev`.
+
+> **Note:** `docker compose build --secret` is not supported in Compose v5. Always use `docker build` directly when injecting BuildKit secrets.
 
 ---
 
@@ -30,7 +39,7 @@ Some tools start a local HTTP server to receive the OAuth callback. The followin
 | Tool | Port | Notes |
 |---|---|---|
 | `opencode` MCP auth | 19876 | Just run `opencode mcp auth` — browser flow works |
-| `wrangler login` | 8976 | Run `wrangler login` — `xdg-open` shim prints the URL, open it on your Mac |
+| `wrangler login` | 8976 | Run `wl` (alias for `wrangler login --callback-host 0.0.0.0`) — OrbStack requires `0.0.0.0` binding, not `localhost` |
 
 ### Headless / device-flow mode
 
@@ -38,7 +47,7 @@ For tools that don't use a local callback server, use these flags to print a URL
 
 | Tool | Headless flag | Notes |
 |---|---|---|
-| `wrangler login` | *(no flag needed)* | `xdg-open` shim prints the URL — open it in your Mac browser, callback completes via port 8976 |
+| `wrangler login` | `--callback-host 0.0.0.0` | Use `wl` alias — OrbStack can't forward to loopback-only listeners; must bind to `0.0.0.0` |
 | `gcloud auth login` | `--no-launch-browser` | Prints a URL; paste auth code back at the prompt |
 | `gh auth login` | *(interactive by default)* | Choose "Login with a web browser" — prints a one-time code, paste it after visiting the URL |
 | `terraform login` | *(no flag needed)* | Already uses device flow; prints URL + code, works headless out of the box |
