@@ -17,7 +17,7 @@ shopt -s histappend
 shopt -s checkwinsize
 shopt -s cmdhist
 
-# Share history across parallel `box` sessions: every prompt appends to the
+# Share history across parallel crate-connect sessions: every prompt appends to the
 # file and reloads new entries. O_APPEND writes are atomic under PIPE_BUF, so
 # no locking is needed.
 PROMPT_COMMAND='history -a; history -c; history -r; '"${PROMPT_COMMAND:-}"
