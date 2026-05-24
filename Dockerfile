@@ -51,9 +51,11 @@ ENV LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 # wrangler and other Node tools work through Cloudflare WARP / TLS inspection.
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 # Force Node DNS to prefer IPv4 so 'localhost' binds to 127.0.0.1 (not ::1).
-# OrbStack's IPv6 port forwarding has flaky data delivery; IPv4 is rock-solid.
-# Without this, wrangler (and other Node tools) bind to [::1] and OAuth
-# callbacks from the Mac browser never get their HTTP request bytes delivered.
+# Note: OrbStack can only forward to 0.0.0.0-bound listeners, not loopback
+# (127.0.0.1 or ::1). For tools that must use the OAuth callback pattern,
+# pass --callback-host 0.0.0.0 explicitly (see 'wl' alias in bashrc.default).
+# This flag is kept for general IPv4 preference; it does not fix the OrbStack
+# loopback limitation on its own.
 ENV NODE_OPTIONS=--dns-result-order=ipv4first
 
 # ---------- Node.js LTS (NodeSource) ----------

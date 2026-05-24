@@ -40,6 +40,9 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias grep='grep --color=auto'
 
+# OrbStack only forwards to 0.0.0.0-bound listeners; wrangler defaults to localhost.
+alias wl='wrangler login --callback-host 0.0.0.0'
+
 export EDITOR=vim
 export VISUAL=vim
 
