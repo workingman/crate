@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Print versions of major tools installed in the current crate image.
+set -euo pipefail
+
+CRATE_IMAGE="${CRATE_IMAGE:-crate:latest}"
+
+if ! docker image inspect "$CRATE_IMAGE" >/dev/null 2>&1; then
+    echo "(no image $CRATE_IMAGE yet — run ./scripts/crate-build first)"
+    exit 1
+fi
+
+docker run --rm "$CRATE_IMAGE" bash -lc '
+    printf "%-13s %s\n" "node"        "$(node -v 2>/dev/null)"
+    printf "%-13s %s\n" "npm"         "$(npm -v 2>/dev/null)"
+    printf "%-13s %s\n" "python3"     "$(python3 --version 2>&1 | cut -d" " -f2)"
+    printf "%-13s %s\n" "gh"          "$(gh --version 2>/dev/null | head -1 | awk "{print \$3}")"
+    printf "%-13s %s\n" "wrangler"    "$(wrangler --version 2>&1 | tail -1)"
+    printf "%-13s %s\n" "claude-code" "$(claude --version 2>&1 | head -1)"
+    printf "%-13s %s\n" "opencode"    "$(opencode --version 2>&1 | tail -1)"
+    printf "%-13s %s\n" "terraform"   "$(terraform -v 2>&1 | head -1 | awk "{print \$2}")"
+    printf "%-13s %s\n" "kubectl"     "$(kubectl version --client 2>&1 | head -1 | awk "{print \$3}")"
+    printf "%-13s %s\n" "helm"        "$(helm version --short 2>&1)"
+    printf "%-13s %s\n" "cloudflared" "$(cloudflared --version 2>&1 | head -1 | awk "{print \$3}")"
+    printf "%-13s %s\n" "yq"          "$(yq --version 2>&1 | awk "{print \$NF}")"
+    printf "%-13s %s\n" "jq"          "$(jq --version 2>&1)"
+    printf "%-13s %s\n" "ripgrep"     "$(rg --version 2>&1 | head -1 | awk "{print \$2}")"
+'

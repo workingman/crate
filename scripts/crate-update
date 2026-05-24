@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Pull latest base image + full no-cache rebuild + show before/after version delta.
+set -euo pipefail
+
+CRATE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+CRATE_IMAGE="${CRATE_IMAGE:-crate:latest}"
+
+# shellcheck source=crate-secret-args
+source "$CRATE_DIR/scripts/crate-secret-args"
+
+echo "=== current image versions ==="
+"$CRATE_DIR/scripts/crate-versions" 2>&1 || echo "(no prior image; first-time build)"
+echo
+
+echo "=== building with --pull --no-cache ==="
+docker build --pull --no-cache \
+    "${CRATE_SECRET_ARGS[@]}" \
+    --build-arg UID="$(id -u)" \
+    --build-arg GID="$(id -g)" \
+    --build-arg USERNAME="$(whoami)" \
+    -t "$CRATE_IMAGE" "$CRATE_DIR"
+echo
+
+echo "=== new image versions ==="
+"$CRATE_DIR/scripts/crate-versions"

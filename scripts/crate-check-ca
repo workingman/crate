@@ -2,15 +2,15 @@
 # Diagnose a corporate CA cert bundle for use with crate-build.
 #
 # Usage:
-#   ./check-corp-ca.sh                            # uses $CRATE_CORP_CA or ~/cloudflare-ca.pem
-#   ./check-corp-ca.sh /path/to/your-ca.pem       # explicit path
-#   CRATE_CORP_CA_TEST_URL=... ./check-corp-ca.sh # override the MITM test endpoint
+#   ./scripts/crate-check-ca                            # uses $CRATE_CORP_CA or ~/dev/.cloudflare-ca.pem
+#   ./scripts/crate-check-ca /path/to/your-ca.pem       # explicit path
+#   CRATE_CORP_CA_TEST_URL=... ./scripts/crate-check-ca # override the MITM test endpoint
 #
 # Exits 0 if everything passes, 1 if any check fails.
 
 set -u
 
-cert_path="${1:-${CRATE_CORP_CA:-$HOME/cloudflare-ca.pem}}"
+cert_path="${1:-${CRATE_CORP_CA:-$HOME/dev/.cloudflare-ca.pem}}"
 test_url="${CRATE_CORP_CA_TEST_URL:-https://deb.nodesource.com/setup_lts.x}"
 
 FAIL=0
@@ -104,7 +104,7 @@ section "summary"
 echo "  passed: $PASS"
 echo "  failed: $FAIL"
 if [ "$FAIL" -eq 0 ]; then
-    echo "  next:   crate-build"
+    echo "  next:   ./scripts/crate-build"
     exit 0
 else
     echo "  fix the above before rebuilding"

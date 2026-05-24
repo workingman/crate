@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Incremental build of the crate image.
+# Passes corp CA via --secret if ~/dev/.cloudflare-ca.pem (or $CRATE_CORP_CA) is present.
+set -euo pipefail
+
+CRATE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+CRATE_IMAGE="${CRATE_IMAGE:-crate:latest}"
+
+# shellcheck source=crate-secret-args
+source "$CRATE_DIR/scripts/crate-secret-args"
+
+docker build \
+    "${CRATE_SECRET_ARGS[@]}" \
+    --build-arg UID="$(id -u)" \
+    --build-arg GID="$(id -g)" \
+    --build-arg USERNAME="$(whoami)" \
+    -t "$CRATE_IMAGE" "$CRATE_DIR"

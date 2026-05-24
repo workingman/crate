@@ -26,19 +26,23 @@ share them with no conflicts.
 ### 1. Build the image
 
 ```bash
-# Generate .env with your UID/GID:
-echo "UID=$(id -u)" > .env && echo "GID=$(id -g)" >> .env
+# Incremental build:
+./scripts/crate-build
 
-# Build (no corporate CA):
-docker compose build
-
-# Build (with corporate CA — required when behind Cloudflare WARP / TLS inspection):
-# docker compose does NOT support --secret; use docker build directly.
-docker build \
-  --secret id=corp-ca,src=/Users/groutledge/cloudflare-ca.pem \
-  --build-arg UID=$(id -u) --build-arg GID=$(id -g) \
-  -t crate:latest .
+# Full no-cache rebuild:
+./scripts/crate-rebuild
 ```
+
+Corp CA (`~/dev/.cloudflare-ca.pem`) is passed automatically via `--secret` if present.
+No need to pass it manually — scripts handle it.
+
+> **Manual build** (if you prefer docker directly):
+> ```bash
+> docker build \
+>   --secret id=corp-ca,src=/Users/groutledge/dev/.cloudflare-ca.pem \
+>   --build-arg UID=$(id -u) --build-arg GID=$(id -g) \
+>   -t crate:latest .
+> ```
 
 ### 2. Install the launchd agent (start at login)
 
@@ -77,7 +81,7 @@ Then open Ghostty. You should land at `crate@crate:~$`.
 | Start container manually | `docker compose up -d` (from `~/dev/crate`) |
 | Stop container | `docker compose down` |
 | Restart container | `docker compose restart` |
-| Rebuild image | `docker compose build` then `docker compose up -d` |
+| Rebuild image | `./scripts/crate-rebuild` then `docker compose up -d` |
 
 Home directory is persisted via `~/docker-home` volume mount. `~/dev` is mounted at `/home/crate/dev`.
 
@@ -122,14 +126,13 @@ If you're behind a TLS-intercepting proxy (Cloudflare WARP, Zscaler, etc.), prov
 at build time:
 
 ```bash
-docker build \
-  --secret id=corp-ca,src=/Users/groutledge/cloudflare-ca.pem \
-  --build-arg UID=$(id -u) --build-arg GID=$(id -g) \
-  -t crate:latest .
+./scripts/crate-rebuild
 ```
 
-`~/cloudflare-ca.pem` is the Cloudflare WARP corporate CA. Export it from your Mac's Keychain
-(look for "Cloudflare for Teams ECC Certificate Authority").
+`~/dev/.cloudflare-ca.pem` is the Cloudflare WARP corporate CA, stored in the shared `~/dev/`
+mount so it's accessible from both Mac and inside crate. Export it from your Mac's Keychain
+(look for "Cloudflare for Teams ECC Certificate Authority"). The build scripts detect it
+automatically — no manual `--secret` flag needed.
 
 ---
 
