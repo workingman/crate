@@ -92,6 +92,15 @@ RUN ARCH=$(dpkg --print-architecture) \
 # ---------- wrangler (Cloudflare); claude-code + opencode are installed at the very end of the file ----------
 RUN npm install -g --omit=dev wrangler
 
+# ---------- xdg-open shim ----------
+# The container has no browser. This shim replaces xdg-open so tools like
+# wrangler don't fail when they try to launch a browser — it prints the URL
+# for the user to open manually on their Mac, then exits 0 so the tool's
+# OAuth callback listener stays alive. Port bindings in compose.yaml route
+# the callback back into the container automatically.
+COPY xdg-open /usr/local/bin/xdg-open
+RUN chmod 0755 /usr/local/bin/xdg-open
+
 # ---------- skel files + entrypoint ----------
 RUN mkdir -p /etc/skel-devbox
 COPY bashrc.default   /etc/skel-devbox/bashrc.default

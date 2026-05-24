@@ -30,7 +30,7 @@ Some tools start a local HTTP server to receive the OAuth callback. The followin
 | Tool | Port | Notes |
 |---|---|---|
 | `opencode` MCP auth | 19876 | Just run `opencode mcp auth` — browser flow works |
-| `wrangler login` | 8976 | Just run `wrangler login` — browser flow works |
+| `wrangler login` | 8976 | Run `wrangler login` — `xdg-open` shim prints the URL, open it on your Mac |
 
 ### Headless / device-flow mode
 
@@ -38,7 +38,7 @@ For tools that don't use a local callback server, use these flags to print a URL
 
 | Tool | Headless flag | Notes |
 |---|---|---|
-| `wrangler login` | `--browser=false` | Prints a URL; paste auth code back at the prompt *(port 8976 is published so browser flow also works)* |
+| `wrangler login` | *(no flag needed)* | `xdg-open` shim prints the URL — open it in your Mac browser, callback completes via port 8976 |
 | `gcloud auth login` | `--no-launch-browser` | Prints a URL; paste auth code back at the prompt |
 | `gh auth login` | *(interactive by default)* | Choose "Login with a web browser" — prints a one-time code, paste it after visiting the URL |
 | `terraform login` | *(no flag needed)* | Already uses device flow; prints URL + code, works headless out of the box |
