@@ -2,10 +2,31 @@
 
 Personal Linux workstation container. Ubuntu 24.04 base with a curated set of dev tools baked in.
 
-## Build & Run
+## Architecture
+
+crate runs as a **persistent singleton**: one long-lived container, started at Mac login via launchd.
+Each Ghostty window attaches to it with `docker exec` (via the `box` script). Multiple windows share
+the same container — no port conflicts, no ephemeral containers, no tmux required.
+
+```
+Mac login
+  → launchd starts crate container (docker compose up -d)
+  → Ghostty window 1:  box  →  docker exec -it crate bash -l
+  → Ghostty window 2:  box  →  docker exec -it crate bash -l
+  → Ghostty window N:  box  →  docker exec -it crate bash -l
+```
+
+Ports `8976` (wrangler) and `19876` (opencode MCP) are bound once at container start. All windows
+share them with no conflicts.
+
+---
+
+## First-time Setup
+
+### 1. Build the image
 
 ```bash
-# First time (or after UID/GID changes):
+# Generate .env with your UID/GID:
 echo "UID=$(id -u)" > .env && echo "GID=$(id -g)" >> .env
 
 # Build (no corporate CA):
@@ -17,16 +38,51 @@ docker build \
   --secret id=corp-ca,src=/Users/groutledge/cloudflare-ca.pem \
   --build-arg UID=$(id -u) --build-arg GID=$(id -g) \
   -t crate:latest .
-
-# Run:
-docker compose run --rm crate
 ```
+
+### 2. Install the launchd agent (start at login)
+
+```bash
+cp com.groutledge.crate.plist ~/Library/LaunchAgents/
+launchctl load -w ~/Library/LaunchAgents/com.groutledge.crate.plist
+```
+
+This starts `docker compose up -d` at every login. The container's `restart: unless-stopped` policy
+keeps it alive if it crashes between logins.
+
+### 3. Configure Ghostty
+
+```bash
+bash setup-ghostty.sh
+```
+
+This writes `~/.config/ghostty/config` pointing at the `box` script. Each new Ghostty window
+runs `box`, which does `docker exec -it crate bash -l`.
+
+### 4. Start the container now (without rebooting)
+
+```bash
+docker compose up -d
+```
+
+Then open Ghostty. You should land at `crate@crate:~$`.
+
+---
+
+## Daily Use
+
+| Action | Command |
+|---|---|
+| Open a new terminal in crate | Open a new Ghostty window — `box` runs automatically |
+| Start container manually | `docker compose up -d` (from `~/dev/crate`) |
+| Stop container | `docker compose down` |
+| Restart container | `docker compose restart` |
+| Rebuild image | `docker compose build` then `docker compose up -d` |
 
 Home directory is persisted via `~/docker-home` volume mount. `~/dev` is mounted at `/home/crate/dev`.
 
-> **Note:** `docker compose run` normally ignores `ports:`, but here it works correctly because the port bindings are declared in `compose.yaml` (not passed as CLI flags). No `--service-ports` flag needed.
-
-> **Note:** `docker compose build --secret` is not supported in Compose v5. Always use `docker build` directly when injecting BuildKit secrets.
+> **Note:** `docker compose build --secret` is not supported in Compose v5. Always use `docker build`
+> directly when injecting BuildKit secrets.
 
 ---
 
@@ -36,28 +92,34 @@ The container has no browser. Two approaches depending on the tool:
 
 ### OAuth callback ports (browser flow works natively)
 
-Some tools start a local HTTP server to receive the OAuth callback. The following ports are published to Mac loopback (`127.0.0.1` only — not exposed on the LAN), so the browser flow works transparently from your Mac.
+Some tools start a local HTTP server to receive the OAuth callback. The following ports are published
+to Mac loopback (`127.0.0.1` only — not exposed on the LAN), so the browser flow works transparently
+from your Mac.
 
-> **OrbStack limitation:** OrbStack can only forward to listeners bound on `0.0.0.0` inside the container. Listeners bound to `127.0.0.1` or `::1` will accept the TCP handshake but silently drop all data (you'll see `ERR_EMPTY_RESPONSE`). Tools that default to `localhost` need an explicit flag to bind on `0.0.0.0` — see the `wl` alias below.
+> **OrbStack limitation:** OrbStack can only forward to listeners bound on `0.0.0.0` inside the
+> container. Listeners bound to `127.0.0.1` or `::1` will accept the TCP handshake but silently drop
+> all data (you'll see `ERR_EMPTY_RESPONSE`). Tools that default to `localhost` need an explicit flag
+> to bind on `0.0.0.0` — see the `wl` alias below.
 
 | Tool | Port | Notes |
 |---|---|---|
 | `opencode` MCP auth | 19876 | Just run `opencode mcp auth` — browser flow works |
-| `wrangler login` | 8976 | Run `wl` (alias for `wrangler login --callback-host 0.0.0.0`) — OrbStack requires `0.0.0.0` binding, not `localhost` |
+| `wrangler login` | 8976 | Run `wl` (alias for `wrangler login --callback-host 0.0.0.0`) |
 
 ### Headless / device-flow mode
 
-For tools that don't use a local callback server, use these flags to print a URL you visit on your Mac:
+For tools that don't use a local callback server:
 
 | Tool | Headless flag | Notes |
 |---|---|---|
-| `gcloud auth login` | `--no-launch-browser` | Prints a URL → open in Mac browser → Google shows an auth code → paste it back at the prompt |
-| `gh auth login` | *(interactive by default)* | Choose "Login with a web browser" — prints a one-time code, paste it after visiting the URL |
-| `terraform login` | *(no flag needed)* | Already uses device flow; prints URL + code, works headless out of the box |
+| `gcloud auth login` | `--no-launch-browser` | Prints a URL → open in Mac browser → paste auth code back |
+| `gh auth login` | *(interactive)* | Choose "Login with a web browser" — prints a one-time code |
+| `terraform login` | *(no flag needed)* | Already uses device flow; prints URL + code |
 
 ### Corporate CA / TLS inspection
 
-If you're behind a TLS-intercepting proxy (Cloudflare WARP, Zscaler, etc.), provide your corp CA at build time:
+If you're behind a TLS-intercepting proxy (Cloudflare WARP, Zscaler, etc.), provide your corp CA
+at build time:
 
 ```bash
 docker build \
@@ -66,9 +128,8 @@ docker build \
   -t crate:latest .
 ```
 
-The cert is injected via BuildKit secret — never copied into the image layer. `--build-arg UID/GID` is required alongside `--secret` since we can't use `docker compose build` here (Compose v5 doesn't support `--secret`).
-
-`~/cloudflare-ca.pem` is the Cloudflare WARP corporate CA. Export it from your Mac's Keychain (look for "Cloudflare for Teams ECC Certificate Authority") or ask your IT/SE team for the PEM file.
+`~/cloudflare-ca.pem` is the Cloudflare WARP corporate CA. Export it from your Mac's Keychain
+(look for "Cloudflare for Teams ECC Certificate Authority").
 
 ---
 

@@ -7,10 +7,12 @@ services:
         GID: ${GID}
         USERNAME: crate
     image: crate:latest
+    container_name: crate          # fixed name — docker exec crate bash always works
     hostname: crate
     stdin_open: true
     tty: true
     init: true
+    restart: unless-stopped        # survive reboots; launchd starts Docker, Docker restarts crate
     ports:
       - "127.0.0.1:19876:19876"   # opencode MCP OAuth callback
       - "127.0.0.1:8976:8976"     # wrangler login callback

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    LaunchAgent: com.groutledge.crate
+    Starts the crate singleton container at login and keeps it running.
+
+    Install:
+        cp com.groutledge.crate.plist ~/Library/LaunchAgents/
+        launchctl load -w ~/Library/LaunchAgents/com.groutledge.crate.plist
+
+    Uninstall:
+        launchctl unload ~/Library/LaunchAgents/com.groutledge.crate.plist
+        rm ~/Library/LaunchAgents/com.groutledge.crate.plist
+
+    The container uses restart: unless-stopped in compose.yaml, so Docker itself
+    will restart it if it crashes. launchd only needs to run `docker compose up`
+    once at login.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.groutledge.crate</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <!-- Wait for OrbStack/Docker to be ready, then bring the container up. -->
+        <!-- docker compose up -d is idempotent: no-op if container is already running. -->
+        <string>
+            until /usr/local/bin/docker info &gt;/dev/null 2&gt;&amp;1; do sleep 2; done;
+            cd /Users/groutledge/dev/crate &amp;&amp; /usr/local/bin/docker compose up -d
+        </string>
+    </array>
+
+    <!-- Run at login. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Keep launchd from restarting this job after it exits successfully.
+         docker compose up -d exits 0 once the container is running; the
+         container itself stays alive via Docker's restart policy. -->
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/crate-launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/crate-launchd.log</string>
+</dict>
+</plist>

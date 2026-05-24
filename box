@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# box — open a shell in the crate singleton container.
+#
+# Usage: box [shell-args...]
+#   Opens a new interactive bash session in the running crate container.
+#   Multiple Ghostty windows can each run `box` independently — they all
+#   attach to the same container with no port conflicts.
+#
+# If the container isn't running yet (e.g., called before launchd fires),
+# this script brings it up first.
+set -euo pipefail
+
+DOCKER=/usr/local/bin/docker
+COMPOSE_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTAINER=crate
+
+# Ensure Docker is reachable.
+if ! "$DOCKER" info >/dev/null 2>&1; then
+    echo "crate: Docker is not running. Start OrbStack and try again." >&2
+    exit 1
+fi
+
+# If the container isn't running, start it.
+if ! "$DOCKER" inspect --format '{{.State.Running}}' "$CONTAINER" 2>/dev/null | grep -q true; then
+    echo "crate: container not running — starting..." >&2
+    "$DOCKER" compose -f "$COMPOSE_DIR/compose.yaml" up -d
+    # Give the entrypoint a moment to finish seeding dotfiles.
+    sleep 1
+fi
+
+# Attach a new interactive shell. Each call to `box` creates an independent
+# shell session; closing one window does not affect others.
+exec "$DOCKER" exec -it "$CONTAINER" bash -l "$@"
