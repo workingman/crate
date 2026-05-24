@@ -99,6 +99,16 @@ RUN ARCH=$(dpkg --print-architecture) \
 # Swiss-army knife for cloud storage — native R2, GCS, S3 support. Great for demos.
 RUN curl -fsSL https://rclone.org/install.sh | bash
 
+# ---------- trivy (Aqua Security vulnerability scanner) ----------
+# Scans npm deps, container images, IaC files (Terraform, Dockerfiles), and secrets.
+# Open source, no account required. Complements Cloudflare runtime security.
+RUN curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key \
+         | gpg --dearmor -o /etc/apt/keyrings/trivy.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" \
+         > /etc/apt/sources.list.d/trivy.list \
+    && apt-get update && apt-get install -y --no-install-recommends trivy \
+    && rm -rf /var/lib/apt/lists/*
+
 # ---------- flarectl (Cloudflare CLI) ----------
 # Released from github.com/cloudflare/cloudflare-go under the legacy v0.x tag scheme.
 RUN ARCH=$(dpkg --print-architecture) \

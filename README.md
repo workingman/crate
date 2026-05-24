@@ -82,6 +82,7 @@ The cert is injected via BuildKit secret — never copied into the image layer. 
 - **Terraform**
 - **cloudflared** (Cloudflare Tunnel client)
 - **rclone** (cloud storage CLI — native R2, GCS, S3 support)
+- **trivy** (vulnerability scanner — npm deps, container images, IaC, secrets)
 - **claude-code** + **opencode-ai**
 - **yq** (Mike Farah's YAML processor)
 - Standard utilities: `git`, `vim`, `tmux`, `htop`, `jq`, `ripgrep`, `fzf`, `tree`, and friends
