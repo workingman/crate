@@ -76,6 +76,8 @@ The cert is injected via BuildKit secret — never copied into the image layer. 
 
 - **Node.js LTS** + npm
 - **Wrangler** (Cloudflare Workers CLI)
+- **Miniflare** (local Cloudflare Workers runtime — offline dev and demos)
+- **flarectl** (Cloudflare CLI — quick DNS/zone/account ops)
 - **GitHub CLI** (`gh`)
 - **Terraform**
 - **cloudflared** (Cloudflare Tunnel client)

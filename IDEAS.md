@@ -7,6 +7,7 @@ Tools worth adding in future, roughly prioritized. Not installed yet.
 - **websocat** — WebSocket testing; relevant for Workers + Durable Objects demos
 - **k6** — load testing CLI; great for showing Cloudflare performance/caching wins
 - **grpcurl** — gRPC testing if customers are doing Workers + gRPC
+- **bun** — fast JS runtime + package manager; increasingly common in Workers-adjacent projects
 
 ## Data / observability
 - **jless** — interactive terminal JSON explorer; pairs well with jq for live API demos

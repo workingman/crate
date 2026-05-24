@@ -19,7 +19,7 @@ RUN yes 2>/dev/null | unminimize; rm -rf /var/lib/apt/lists/*
 # ---------- base apt packages ----------
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bash sudo locales ca-certificates gnupg lsb-release apt-transport-https \
-        curl wget openssh-client dnsutils iputils-ping iproute2 netcat-openbsd traceroute whois \
+        curl wget openssh-client dnsutils iputils-ping iproute2 net-tools netcat-openbsd traceroute whois \
         git vim less tmux htop jq ripgrep fzf tree file unzip zip rsync \
         python3 python3-pip python3-venv build-essential pkg-config \
     && sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen \
@@ -99,8 +99,17 @@ RUN ARCH=$(dpkg --print-architecture) \
 # Swiss-army knife for cloud storage — native R2, GCS, S3 support. Great for demos.
 RUN curl -fsSL https://rclone.org/install.sh | bash
 
-# ---------- wrangler (Cloudflare); claude-code + opencode are installed at the very end of the file ----------
-RUN npm install -g --omit=dev wrangler
+# ---------- flarectl (Cloudflare CLI) ----------
+# Released from github.com/cloudflare/cloudflare-go under the legacy v0.x tag scheme.
+RUN ARCH=$(dpkg --print-architecture) \
+    && FLARECTL_VERSION=$(curl -fsSL "https://api.github.com/repos/cloudflare/cloudflare-go/releases" \
+         | python3 -c "import sys,json; releases=[r for r in json.load(sys.stdin) if r['tag_name'].startswith('v0.')]; print(releases[0]['tag_name'].lstrip('v'))") \
+    && curl -fsSL "https://github.com/cloudflare/cloudflare-go/releases/download/v${FLARECTL_VERSION}/flarectl_${FLARECTL_VERSION}_linux_${ARCH}.tar.gz" \
+         | tar -xz -C /usr/local/bin flarectl \
+    && chmod +x /usr/local/bin/flarectl
+
+# ---------- wrangler + miniflare (Cloudflare); claude-code + opencode at end of file ----------
+RUN npm install -g --omit=dev wrangler miniflare
 
 # ---------- xdg-open shim ----------
 # The container has no browser. This shim replaces xdg-open so tools like
