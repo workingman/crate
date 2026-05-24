@@ -47,6 +47,9 @@ RUN ARCH=$(dpkg --print-architecture) \
     && chmod +x /usr/local/bin/yq
 
 ENV LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+# Node.js doesn't use the system CA store — point it at the corp CA so
+# wrangler and other Node tools work through Cloudflare WARP / TLS inspection.
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
 # ---------- Node.js LTS (NodeSource) ----------
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
