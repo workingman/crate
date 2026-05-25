@@ -1,10 +1,13 @@
 #!/bin/bash
 # xdg-open shim for headless container use.
-# Prints the URL so the user can open it manually on their Mac,
-# then exits 0 so the calling tool (wrangler, etc.) keeps its
-# OAuth callback listener alive.
-echo ""
-echo "  [xdg-open] Open this URL in your Mac browser:"
-echo "  $1"
-echo ""
+# Prints the URL to stdout, stderr, and a temp file so it's
+# visible regardless of how the calling tool captures output.
+# Exits 0 so the OAuth callback listener stays alive.
+MSG="
+  [xdg-open] Open this URL in your Mac browser:
+  $1
+"
+echo "$MSG"
+echo "$MSG" >&2
+echo "$MSG" > /tmp/xdg-open-url.txt
 exit 0
