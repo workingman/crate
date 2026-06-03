@@ -36,13 +36,8 @@ share them with no conflicts.
 Corp CA (`~/dev/.cloudflare-ca.pem`) is passed automatically via `--secret` if present.
 No need to pass it manually — scripts handle it.
 
-> **Manual build** (if you prefer docker directly):
-> ```bash
-> docker build \
->   --secret id=corp-ca,src=/Users/groutledge/dev/.cloudflare-ca.pem \
->   --build-arg UID=$(id -u) --build-arg GID=$(id -g) \
->   -t crate:latest .
-> ```
+> **Never run `docker build` directly.** The scripts pass the correct build args (UID, GID, USERNAME=crate).
+> Running `docker build` by hand risks leaking shell env vars like `$USERNAME` as build args, producing a broken image.
 
 ### 2. Install the launchd agent (start at login)
 
@@ -85,8 +80,9 @@ Then open Ghostty. You should land at `crate@crate:~$`.
 
 Home directory is persisted via `~/docker-home` volume mount. `~/dev` is mounted at `/home/crate/dev`.
 
-> **Note:** `docker compose build --secret` is not supported in Compose v5. Always use `docker build`
-> directly when injecting BuildKit secrets.
+> **Note:** Always use `./scripts/crate-build` or `./scripts/crate-rebuild` — never `docker build` directly.
+> The scripts handle the corp CA secret and pass the correct build args. Running `docker build` directly
+> risks leaking shell environment variables (e.g. `$USERNAME`) as build args, producing a broken image.
 
 ---
 

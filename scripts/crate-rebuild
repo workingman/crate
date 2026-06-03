@@ -13,5 +13,4 @@ docker build --no-cache \
     "${CRATE_SECRET_ARGS[@]}" \
     --build-arg UID="$(id -u)" \
     --build-arg GID="$(id -g)" \
-    --build-arg USERNAME="$(whoami)" \
     -t "$CRATE_IMAGE" "$CRATE_DIR"
