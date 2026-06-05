@@ -34,4 +34,45 @@ cp "$SKEL/tui.json" "$HOME/.config/opencode/tui.json"
 mkdir -p "$HOME/.local/bin" "$HOME/.config"
 mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
 
+# Seed glab config only if missing — auth tokens get written back into this
+# file by 'glab auth login', so we must not overwrite an existing file.
+if [ ! -e "$HOME/.config/glab-cli/config.yml" ] && [ -f "$SKEL/glab-config.yml" ]; then
+    mkdir -p "$HOME/.config/glab-cli"
+    cp "$SKEL/glab-config.yml" "$HOME/.config/glab-cli/config.yml"
+    chmod 600 "$HOME/.config/glab-cli/config.yml"
+fi
+
+# Seed ~/.ssh/config with a gitlab.cfdata.org stanza if not already present.
+if ! grep -qF "gitlab.cfdata.org" "$HOME/.ssh/config" 2>/dev/null; then
+    cat >> "$HOME/.ssh/config" <<'SSHCONF'
+Host gitlab.cfdata.org
+    IdentityFile ~/.ssh/id_ed25519_crate
+    IdentitiesOnly yes
+SSHCONF
+    chmod 600 "$HOME/.ssh/config"
+fi
+
+# Generate a crate-specific SSH keypair on first run.
+# Add the public key to your GitLab profile at gitlab.cfdata.org.
+if [ ! -f "$HOME/.ssh/id_ed25519_crate" ]; then
+    ssh-keygen -t ed25519 -C "crate@$(hostname)" -f "$HOME/.ssh/id_ed25519_crate" -N ""
+    echo ""
+    echo "================================================================"
+    echo " New SSH key generated. Add this public key to GitLab:"
+    echo " https://gitlab.cfdata.org/-/profile/keys"
+    echo ""
+    cat "$HOME/.ssh/id_ed25519_crate.pub"
+    echo "================================================================"
+    echo ""
+fi
+
+# Ensure gitlab.cfdata.org host key is in known_hosts. Scanned live so no
+# keys are stored in the repo. -H hashes the hostname (standard hardening).
+# Safe to run on every start — skipped if the sentinel file exists.
+if [ ! -f "$HOME/.ssh/.known_hosts_gitlab_scanned" ]; then
+    ssh-keyscan -H gitlab.cfdata.org >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
+    chmod 600 "$HOME/.ssh/known_hosts"
+    touch "$HOME/.ssh/.known_hosts_gitlab_scanned"
+fi
+
 exec "$@"

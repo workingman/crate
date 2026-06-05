@@ -74,9 +74,13 @@ RUN install -m 0755 -d /etc/apt/keyrings \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------- GitLab CLI ----------
-RUN curl -fsSL https://packages.gitlab.com/install/repositories/gitlab/gitlab-cli/script.deb.sh | bash \
-    && apt-get install -y --no-install-recommends glab \
-    && rm -rf /var/lib/apt/lists/*
+# packages.gitlab.com APT repo is gone; install from GitLab's generic package registry instead.
+RUN ARCH=$(dpkg --print-architecture) \
+    && GLAB_VERSION=$(curl -fsSL "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/releases?per_page=1" \
+         | python3 -c "import sys,json; r=json.load(sys.stdin); print(r[0]['tag_name'].lstrip('v'))") \
+    && curl -fsSL "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/packages/generic/glab/${GLAB_VERSION}/glab_${GLAB_VERSION}_linux_${ARCH}.tar.gz" \
+         | tar -xz -C /usr/local/bin --strip-components=1 bin/glab \
+    && chmod +x /usr/local/bin/glab
 
 # ---------- HashiCorp Terraform ----------
 RUN curl -fsSL https://apt.releases.hashicorp.com/gpg \
@@ -140,6 +144,7 @@ RUN mkdir -p /etc/skel-devbox
 COPY bashrc.default   /etc/skel-devbox/bashrc.default
 COPY profile.default  /etc/skel-devbox/profile.default
 COPY tui.json         /etc/skel-devbox/tui.json
+COPY glab-config.yml  /etc/skel-devbox/glab-config.yml
 COPY entrypoint.sh    /usr/local/bin/entrypoint.sh
 RUN chmod 0755 /usr/local/bin/entrypoint.sh
 

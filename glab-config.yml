@@ -1,0 +1,6 @@
+git_protocol: ssh
+host: gitlab.cfdata.org
+hosts:
+  gitlab.cfdata.org:
+    api_protocol: https
+    git_protocol: ssh
