@@ -98,13 +98,13 @@ from your Mac.
 
 > **OrbStack limitation:** OrbStack can only forward to listeners bound on `0.0.0.0` inside the
 > container. Listeners bound to `127.0.0.1` or `::1` will accept the TCP handshake but silently drop
-> all data (you'll see `ERR_EMPTY_RESPONSE`). Tools that default to `localhost` need an explicit flag
-> to bind on `0.0.0.0` — see the `wl` alias below.
+> all data (you'll see `ERR_EMPTY_RESPONSE`). The default shell config wraps `wrangler login` so it
+> binds to `0.0.0.0` automatically.
 
 | Tool | Port | Notes |
 |---|---|---|
 | `opencode` MCP auth | 19876 | Just run `opencode mcp auth` — browser flow works |
-| `wrangler login` | 8976 | Run `wl` (alias for `wrangler login --callback-host 0.0.0.0`) |
+| `wrangler login` | 8976 | Just run `wrangler login` — the shell wrapper adds `--callback-host 0.0.0.0` automatically |
 
 ### Headless / device-flow mode
 

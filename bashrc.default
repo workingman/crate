@@ -40,8 +40,16 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias grep='grep --color=auto'
 
-# OrbStack only forwards to 0.0.0.0-bound listeners; wrangler defaults to localhost.
-alias wl='wrangler login --callback-host 0.0.0.0'
+# OrbStack only forwards to 0.0.0.0-bound listeners. Wrangler login defaults to
+# localhost, so inject the callback host only for that subcommand.
+wrangler() {
+    if [ "$1" = "login" ]; then
+        shift
+        command wrangler login --callback-host 0.0.0.0 "$@"
+    else
+        command wrangler "$@"
+    fi
+}
 
 export EDITOR=vim
 export VISUAL=vim
