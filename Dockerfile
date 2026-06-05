@@ -73,6 +73,11 @@ RUN install -m 0755 -d /etc/apt/keyrings \
     && apt-get update && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
+# ---------- GitLab CLI ----------
+RUN curl -fsSL https://packages.gitlab.com/install/repositories/gitlab/gitlab-cli/script.deb.sh | bash \
+    && apt-get install -y --no-install-recommends glab \
+    && rm -rf /var/lib/apt/lists/*
+
 # ---------- HashiCorp Terraform ----------
 RUN curl -fsSL https://apt.releases.hashicorp.com/gpg \
          | gpg --dearmor -o /etc/apt/keyrings/hashicorp-archive-keyring.gpg \
