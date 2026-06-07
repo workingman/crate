@@ -1,0 +1,34 @@
+# ============================================================================
+# cf-glab-config.yml — Cloudflare corp overlay for glab + SSH
+#
+# The image ships a generic gitlab.com default (glab-config.yml). On the corp
+# laptop, apply this overlay once after first boot. Everything below lives
+# under ~/docker-home/ (mounted as the container's $HOME), so it survives
+# image rebuilds.
+#
+# Steps (run inside the running crate container — `docker exec -it crate bash`):
+#
+#   1. Drop this file in place as the active glab config:
+#        cp ~/dev/crate/cf-glab-config.yml ~/.config/glab-cli/config.yml
+#        chmod 600 ~/.config/glab-cli/config.yml
+#
+#   2. Pre-trust the corp host (avoids the first-clone prompt):
+#        ssh-keyscan -H gitlab.cfdata.org >> ~/.ssh/known_hosts
+#
+#   3. Register the crate SSH key with corp GitLab — paste the public key at
+#        https://gitlab.cfdata.org/-/profile/keys
+#      Public key is at ~/.ssh/id_ed25519_crate.pub
+#
+# No SSH config stanza is needed: the entrypoint already sets `Host *` to use
+# ~/.ssh/id_ed25519_crate with IdentitiesOnly, which covers cfdata too.
+#
+# To revert to the generic default, just delete ~/.config/glab-cli/config.yml
+# (the entrypoint will re-seed glab-config.yml on next start).
+# ============================================================================
+
+git_protocol: ssh
+host: gitlab.cfdata.org
+hosts:
+  gitlab.cfdata.org:
+    api_protocol: https
+    git_protocol: ssh

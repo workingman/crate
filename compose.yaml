@@ -22,6 +22,4 @@ services:
     volumes:
       - ~/docker-home:/home/crate
       - ~/dev:/home/crate/dev
-    environment:
-      GITLAB_HOST: gitlab.cfdata.org
     working_dir: /home/crate

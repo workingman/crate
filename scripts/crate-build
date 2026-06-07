@@ -10,7 +10,7 @@ CRATE_IMAGE="${CRATE_IMAGE:-crate:latest}"
 source "$CRATE_DIR/scripts/crate-secret-args"
 
 docker build \
-    "${CRATE_SECRET_ARGS[@]}" \
+    ${CRATE_SECRET_ARGS[@]+"${CRATE_SECRET_ARGS[@]}"} \
     --build-arg UID="$(id -u)" \
     --build-arg GID="$(id -g)" \
     -t "$CRATE_IMAGE" "$CRATE_DIR"

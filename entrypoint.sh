@@ -42,10 +42,12 @@ if [ ! -e "$HOME/.config/glab-cli/config.yml" ] && [ -f "$SKEL/glab-config.yml" 
     chmod 600 "$HOME/.config/glab-cli/config.yml"
 fi
 
-# Seed ~/.ssh/config with a gitlab.cfdata.org stanza if not already present.
-if ! grep -qF "gitlab.cfdata.org" "$HOME/.ssh/config" 2>/dev/null; then
+# Seed ~/.ssh/config to pin the crate key for all SSH targets, if not already present.
+# Single-purpose container with one identity, so Host * with IdentitiesOnly is safe
+# and means the user doesn't need a per-host stanza for github/gitlab/etc.
+if ! grep -qF "id_ed25519_crate" "$HOME/.ssh/config" 2>/dev/null; then
     cat >> "$HOME/.ssh/config" <<'SSHCONF'
-Host gitlab.cfdata.org
+Host *
     IdentityFile ~/.ssh/id_ed25519_crate
     IdentitiesOnly yes
 SSHCONF
@@ -53,26 +55,26 @@ SSHCONF
 fi
 
 # Generate a crate-specific SSH keypair on first run.
-# Add the public key to your GitLab profile at gitlab.cfdata.org.
 if [ ! -f "$HOME/.ssh/id_ed25519_crate" ]; then
     ssh-keygen -t ed25519 -C "crate@$(hostname)" -f "$HOME/.ssh/id_ed25519_crate" -N ""
     echo ""
     echo "================================================================"
-    echo " New SSH key generated. Add this public key to GitLab:"
-    echo " https://gitlab.cfdata.org/-/profile/keys"
+    echo " New SSH key generated at ~/.ssh/id_ed25519_crate"
+    echo " Add the public key to whatever git host(s) you use:"
+    echo "   GitHub:  https://github.com/settings/ssh/new"
+    echo "   GitLab:  https://gitlab.com/-/user_settings/ssh_keys"
     echo ""
     cat "$HOME/.ssh/id_ed25519_crate.pub"
     echo "================================================================"
     echo ""
 fi
 
-# Ensure gitlab.cfdata.org host key is in known_hosts. Scanned live so no
-# keys are stored in the repo. -H hashes the hostname (standard hardening).
-# Safe to run on every start — skipped if the sentinel file exists.
-if [ ! -f "$HOME/.ssh/.known_hosts_gitlab_scanned" ]; then
-    ssh-keyscan -H gitlab.cfdata.org >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
+# Pre-trust common git hosts so the first clone doesn't prompt. -H hashes the
+# hostname (standard hardening). Skipped after first run via sentinel.
+if [ ! -f "$HOME/.ssh/.known_hosts_scanned" ]; then
+    ssh-keyscan -H github.com gitlab.com >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
     chmod 600 "$HOME/.ssh/known_hosts"
-    touch "$HOME/.ssh/.known_hosts_gitlab_scanned"
+    touch "$HOME/.ssh/.known_hosts_scanned"
 fi
 
 exec "$@"

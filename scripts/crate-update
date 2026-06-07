@@ -14,7 +14,7 @@ echo
 
 echo "=== building with --pull --no-cache ==="
 docker build --pull --no-cache \
-    "${CRATE_SECRET_ARGS[@]}" \
+    ${CRATE_SECRET_ARGS[@]+"${CRATE_SECRET_ARGS[@]}"} \
     --build-arg UID="$(id -u)" \
     --build-arg GID="$(id -g)" \
     --build-arg USERNAME="$(whoami)" \
