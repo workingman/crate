@@ -1,53 +1,58 @@
 # Session Notes
-_Last updated: Wed Jun 03, 2026, morning PST_
+_Last updated: Sun Jun 07, 2026_
 
 ## Project Context
-`crate` is a Docker-based personal Linux workstation/container repo used as a persistent singleton dev sandbox launched by Ghostty on Mac. Current work is focused on making browser/OAuth-driven auth flows work cleanly inside the headless container, especially `opencode mcp auth`.
+`crate` is a Docker-based personal Linux workstation/container repo used as a persistent singleton dev sandbox launched by Ghostty on Mac. The image is used on two machines: a Cloudflare corp Mac (`groutledge`) and a personal Mac (`geoff`). Recent work over-rotated to corp-specific defaults; this session pulled the design back to "generic everywhere, corp niceties as a small overlay."
 
 ## Current Status
-The `xdg-open` shim fix is working. `~/dev/crate/xdg-open` now writes the auth URL to stdout, stderr, `/tmp/xdg-open-url.txt`, and also walks the parent PID chain to find a real terminal device and write directly to it. Geoff hot-patched the running container with the updated shim and confirmed that `opencode mcp auth` now shows the URL correctly in the terminal.
+Image is now generic by default. `glab` ships a `gitlab.com` default. Corp-laptop setup is captured in a single checked-in file (`cf-glab-config.yml`) with a header-comment recipe. `crate-connect` works on a fresh OrbStack install without a `/usr/local/bin/docker` symlink. Repo is up to date with `origin/main` at `b3630c7`.
 
 ## Completed This Session
-- Confirmed `Dockerfile` bakes the shim into the image with `COPY xdg-open /usr/local/bin/xdg-open`.
-- Updated `xdg-open` to write to stdout, stderr, `/tmp/xdg-open-url.txt`, and a discovered parent terminal device.
-- Verified the repo copy still writes the URL to `/tmp/xdg-open-url.txt`.
-- Restored the executable bit on `xdg-open`.
-- Added `AGENTS.md` documenting the repo-first, hot-patch-optional workflow for container/system changes.
-- Reviewed `docker diff crate` output from the host and determined it showed normal runtime noise, not meaningful live-container drift in key baked files.
-- Hot-patched the running container from the repo copy and confirmed the fix works during `opencode mcp auth`.
+- Pulled 26 commits from `origin/main` to bring the personal Mac up to date.
+- Fixed `scripts/crate-{build,rebuild,update}`: bash-3.2 `set -u` tripped on `"${CRATE_SECRET_ARGS[@]}"` when no corp CA was present. Switched to the `${arr[@]+"${arr[@]}"}` idiom so empty-array expansion is safe.
+- Audited the repo for corp-only assumptions. Only real defect: `glab-config.yml` was hard-wired to `gitlab.cfdata.org` (unreachable on a non-corp network). Other "corp-flavored" bits (corp CA via BuildKit secret, `cloudflared`/`flarectl`/`wrangler` installs, README naming) were already optional or are public products.
+- Refactored to generic defaults:
+  - `glab-config.yml` → `gitlab.com`.
+  - `entrypoint.sh` → SSH config seeds `Host *` with the crate key (`IdentitiesOnly yes`), key-gen banner points at the public GitHub/GitLab SSH key UIs, `ssh-keyscan` pre-trusts `github.com` + `gitlab.com`.
+  - `compose.yaml` → dropped `GITLAB_HOST: gitlab.cfdata.org`.
+- Added `cf-glab-config.yml` at the repo root: the corp glab config plus a YAML comment header with the three-step recipe for the corp laptop (copy file into `~/.config/glab-cli/config.yml`, `ssh-keyscan` cfdata, register key). One file = full reminder.
+- Considered and rejected a two-image (generic base + corp overlay) pattern. Reasoning: only the CA cert is a genuine buildtime corp concern, and it's already gated by a BuildKit `--secret`. Everything else (glab config, SSH stanzas, known_hosts) is runtime state in `~/docker-home/`, where an overlay image would have nothing useful to do.
+- Fixed `crate-connect`: replaced hardcoded `/usr/local/bin/docker` with a probe chain (`~/.orbstack/bin/docker` → `/usr/local/bin/docker` → `/opt/homebrew/bin/docker` → `command -v docker`). PATH lookup last so the script still works under launchd.
+- Verified with two clean `--no-cache` rebuilds (pre- and post-refactor) plus a cached incremental build (same manifest sha, reproducible).
+- Committed and pushed:
+  - `126c5b6` refactor: make image generic by default; corp config lives in cf-glab-config.yml
+  - `b3630c7` crate-connect: find docker portably across installers
 
 ## Todo
-- [ ] Commit the `xdg-open` and `AGENTS.md` changes, along with any other intentional pending edits.
-- [ ] Rebuild the image with `./scripts/crate-rebuild` so the working shim fix is image-backed.
-- [ ] Verify `opencode mcp auth` still shows the URL in the terminal after rebuild without relying on a hot patch.
-- [ ] Investigate the previously noted issue where subagents sometimes do not return.
+- [ ] Refactor `com.groutledge.crate.plist`: same generic-vs-corp problem. Hardcodes `/usr/local/bin/docker` (twice), `/Users/groutledge/dev/crate`, and a corp-flavored label/filename. Decide whether to ship a generic `crate.plist` template with the username/path as substitutions, or two files (generic + `cf-` corp variant) mirroring the `cf-glab-config.yml` pattern.
+- [ ] On the corp Mac, follow the recipe in `cf-glab-config.yml` after the next pull to restore corp glab/SSH behavior.
 
 ## Key Decisions Made
 | Decision | Rationale |
 |---|---|
-| Repo changes are the source of truth for system/container behavior | Prevents snowflake container drift and ensures fixes survive rebuilds |
-| After changing the repo, explicitly decide whether to hot-patch the running container too | Keeps immediate usability separate from durable image-backed fixes |
-| Treat hot patches as temporary until rebuilt into the image | Avoids relying on live edits that disappear on the next rebuild |
-| `xdg-open` should walk the parent PID chain to find a usable terminal | `opencode mcp auth` can spawn `xdg-open` without a directly usable controlling TTY |
+| Generic-by-default image, corp overlay as one self-documenting checked-in file | Works everywhere with no gymnastics; the file's existence in repo root is the reminder |
+| Reject base-image + corp-overlay-image pattern | Only the CA cert is buildtime corp-specific (already secret-gated); rest is runtime files in `~/docker-home`. Overlay would have nothing to do, and adds future-confusion overhead |
+| SSH config uses `Host *` with the crate key + `IdentitiesOnly yes` | Single-purpose container with one identity — no per-host stanzas needed; covers cfdata automatically when added to known_hosts |
+| `crate-connect` probes installer-specific docker locations, PATH last | Works under launchd (no PATH inheritance) and on fresh OrbStack installs (no `/usr/local/bin` symlink) |
+| Bash-3.2-safe empty-array expansion `${arr[@]+"${arr[@]}"}` | macOS still ships bash 3.2 by default; `set -u` errors on the standard `"${arr[@]}"` form for empty arrays |
 
 ## Dead Ends / What Didn't Work
-- Writing only to stdout was not enough because the caller can swallow it.
-- Writing to stdout + stderr + `/tmp` still did not reliably surface the URL during `opencode mcp auth`.
-- Writing to `/dev/tty` alone was not sufficient because the spawned process may not have a controlling TTY.
+- Hardcoding `/usr/local/bin/docker` only works when a previous Docker Desktop install or older OrbStack installer happened to put a symlink there. Fresh OrbStack does not.
+- The original "Docker is not running" error message in `crate-connect` was misleading: the actual failure was "docker binary not found at the hardcoded path."
 
 ## Relevant Files
 | File | Purpose |
 |---|---|
-| `xdg-open` | Headless browser shim for OAuth flows |
-| `Dockerfile` | Bakes `xdg-open` into `/usr/local/bin/xdg-open` |
-| `AGENTS.md` | Local workflow rules for repo-first and optional hot patches |
-| `scripts/crate-build` | Standard incremental build script |
-| `scripts/crate-rebuild` | Standard no-cache rebuild script |
-| `README.md` | Setup and operational guidance |
+| `glab-config.yml` | Generic `gitlab.com` default config seeded into every container |
+| `cf-glab-config.yml` | Corp overlay + recipe header for the work-laptop setup |
+| `entrypoint.sh` | Seeds generic SSH config + key + known_hosts on first run |
+| `crate-connect` | Portable docker discovery + attach-to-singleton |
+| `scripts/crate-{build,rebuild,update}` | Build scripts, now bash-3.2-safe |
+| `compose.yaml` | Singleton container config (no corp-specific env) |
+| `com.groutledge.crate.plist` | LaunchAgent — still corp-specific; flagged for refactor |
 
 ## Open Questions / Blockers
-- The subagents-not-returning issue remains unresolved.
-- Pending edits in the repo should be reviewed and committed intentionally.
+- Plist refactor approach: substitution template vs. cf-overlay variant? No urgent need, but worth deciding before another machine gets onboarded.
 
 ## Immediate Next Action
-Commit the `xdg-open` and `AGENTS.md` changes, then rebuild the image so the working auth URL fix is image-backed.
+On the corp Mac: pull, then follow the `cf-glab-config.yml` recipe to restore corp glab and SSH behavior. The new generic defaults will otherwise leave that machine pointing at `gitlab.com`.
