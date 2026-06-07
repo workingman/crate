@@ -10,13 +10,32 @@
 # this script brings it up first.
 set -euo pipefail
 
-DOCKER=/usr/local/bin/docker
 COMPOSE_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTAINER=crate
 
-# Ensure Docker is reachable.
+# Find docker — location varies by installer (OrbStack, Docker Desktop, brew).
+# First executable wins. PATH lookup is last so this works under launchd too.
+DOCKER=""
+for candidate in \
+    "$HOME/.orbstack/bin/docker" \
+    /usr/local/bin/docker \
+    /opt/homebrew/bin/docker \
+    "$(command -v docker 2>/dev/null || true)"; do
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+        DOCKER="$candidate"
+        break
+    fi
+done
+
+if [ -z "$DOCKER" ]; then
+    echo "crate: docker CLI not found (looked in ~/.orbstack/bin, /usr/local/bin, /opt/homebrew/bin, PATH)." >&2
+    echo "       Install OrbStack: https://orbstack.dev/" >&2
+    exit 1
+fi
+
+# Ensure the docker daemon is reachable.
 if ! "$DOCKER" info >/dev/null 2>&1; then
-    echo "crate: Docker is not running. Start OrbStack and try again." >&2
+    echo "crate: Docker daemon not responding. Start OrbStack and try again." >&2
     exit 1
 fi
 
