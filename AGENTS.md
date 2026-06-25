@@ -19,4 +19,4 @@
 
 - Changes under mounted paths like `~/docker-home` and `~/dev` are expected persistent state.
 - Changes under container-local paths like `/usr/local/bin`, `/etc`, `/usr`, installed packages, or generated system config should be assumed ephemeral unless they came from the image build.
-- Runtime noise from Docker, OrbStack, cert injection, and `/tmp` scratch files is normal and should be distinguished from intentional system drift.
+- Runtime noise from Docker, Colima, cert injection, and `/tmp` scratch files is normal and should be distinguished from intentional system drift.

@@ -25,11 +25,14 @@
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <!-- Wait for Colima/Docker to be ready, then bring the container up. -->
-        <!-- docker compose up -d is idempotent: no-op if container is already running. -->
+        <!-- Resolve docker via the shared helper (avoids dead OrbStack symlink at
+             /usr/local/bin/docker; handles launchd's minimal PATH). Then wait for
+             the daemon (Colima) to be ready and bring the container up.
+             docker compose up -d is idempotent: no-op if already running. -->
         <string>
-            until /usr/local/bin/docker info &gt;/dev/null 2&gt;&amp;1; do sleep 2; done;
-            cd /Users/groutledge/dev/crate &amp;&amp; /usr/local/bin/docker compose up -d
+            DOCKER="$(/Users/groutledge/dev/crate/scripts/docker-bin)" || exit 1;
+            until "$DOCKER" info &gt;/dev/null 2&gt;&amp;1; do sleep 2; done;
+            cd /Users/groutledge/dev/crate &amp;&amp; "$DOCKER" compose up -d
         </string>
     </array>
 

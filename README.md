@@ -95,10 +95,11 @@ Some tools start a local HTTP server to receive the OAuth callback. The followin
 to Mac loopback (`127.0.0.1` only — not exposed on the LAN), so the browser flow works transparently
 from your Mac.
 
-> **OrbStack limitation:** OrbStack can only forward to listeners bound on `0.0.0.0` inside the
-> container. Listeners bound to `127.0.0.1` or `::1` will accept the TCP handshake but silently drop
-> all data (you'll see `ERR_EMPTY_RESPONSE`). The default shell config wraps `wrangler login` so it
-> binds to `0.0.0.0` automatically.
+> **Docker port-forwarding limitation (runtime-agnostic):** Published-port traffic reaches the
+> container via its external interface, so it only hits listeners bound to `0.0.0.0` inside the
+> container — not `127.0.0.1` or `::1`. A loopback-bound listener accepts the TCP handshake but
+> drops the data (`ERR_EMPTY_RESPONSE` / connection reset). Verified on Colima. The default shell
+> config wraps `wrangler login` so it binds to `0.0.0.0` automatically.
 
 | Tool | Port | Notes |
 |---|---|---|

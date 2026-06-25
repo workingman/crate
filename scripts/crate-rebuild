@@ -1,16 +1,10 @@
 #!/usr/bin/env bash
-# Full no-cache rebuild of the crate image.
-# Passes corp CA via --secret if ~/dev/.cloudflare-ca.pem (or $CRATE_CORP_CA) is present.
+# Full no-cache rebuild of the crate image via docker compose.
+# Build args (UID/GID/USERNAME) and the corp CA (CORP_CA_B64) come from .env +
+# compose.yaml. See README "Corporate CA cert" to (re)generate CORP_CA_B64.
 set -euo pipefail
 
 CRATE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-CRATE_IMAGE="${CRATE_IMAGE:-crate:latest}"
+DOCKER="$("$CRATE_DIR/scripts/docker-bin")"
 
-# shellcheck source=crate-secret-args
-source "$CRATE_DIR/scripts/crate-secret-args"
-
-docker build --no-cache \
-    "${CRATE_SECRET_ARGS[@]}" \
-    --build-arg UID="$(id -u)" \
-    --build-arg GID="$(id -g)" \
-    -t "$CRATE_IMAGE" "$CRATE_DIR"
+exec "$DOCKER" compose -f "$CRATE_DIR/compose.yaml" build --no-cache "$@"

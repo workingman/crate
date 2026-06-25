@@ -2,7 +2,7 @@
 # Diagnose a corporate CA cert bundle for use with crate-build.
 #
 # Usage:
-#   ./scripts/crate-check-ca                            # uses $CRATE_CORP_CA or ~/dev/.cloudflare-ca.pem
+#   ./scripts/crate-check-ca                            # uses $CRATE_CORP_CA or ~/docker-home/.corp-ca.pem
 #   ./scripts/crate-check-ca /path/to/your-ca.pem       # explicit path
 #   CRATE_CORP_CA_TEST_URL=... ./scripts/crate-check-ca # override the MITM test endpoint
 #
@@ -10,7 +10,7 @@
 
 set -u
 
-cert_path="${1:-${CRATE_CORP_CA:-$HOME/dev/.cloudflare-ca.pem}}"
+cert_path="${1:-${CRATE_CORP_CA:-$HOME/docker-home/.corp-ca.pem}}"
 test_url="${CRATE_CORP_CA_TEST_URL:-https://deb.nodesource.com/setup_lts.x}"
 
 FAIL=0

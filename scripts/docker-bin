@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# docker-bin — print the absolute path to a working docker binary, then exit 0.
+#
+# Why this exists: Ghostty (--noprofile --norc) and launchd both run with a
+# minimal PATH that usually omits Homebrew. Hardcoding a single path is brittle
+# — e.g. /usr/local/bin/docker was a dead symlink into the removed OrbStack app.
+# This probes known locations, skips dead symlinks (the -x test fails on a
+# symlink whose target is gone), and falls back to PATH. Runtime-agnostic:
+# works for Colima, Docker Desktop, or anything else that drops a docker binary.
+#
+# Usage:  DOCKER="$(/path/to/scripts/docker-bin)" || exit 1
+set -euo pipefail
+
+for candidate in /opt/homebrew/bin/docker /usr/local/bin/docker; do
+    if [ -x "$candidate" ] && "$candidate" --version >/dev/null 2>&1; then
+        echo "$candidate"
+        exit 0
+    fi
+done
+
+if command -v docker >/dev/null 2>&1; then
+    command -v docker
+    exit 0
+fi
+
+echo "docker-bin: no working docker binary found" >&2
+exit 1
