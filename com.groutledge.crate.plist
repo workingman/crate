@@ -25,7 +25,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <!-- Wait for OrbStack/Docker to be ready, then bring the container up. -->
+        <!-- Wait for Colima/Docker to be ready, then bring the container up. -->
         <!-- docker compose up -d is idempotent: no-op if container is already running. -->
         <string>
             until /usr/local/bin/docker info &gt;/dev/null 2&gt;&amp;1; do sleep 2; done;

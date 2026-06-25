@@ -10,13 +10,23 @@
 # this script brings it up first.
 set -euo pipefail
 
-DOCKER=/usr/local/bin/docker
+# Resolve the docker binary. Ghostty launches with --noprofile --norc, so PATH
+# may be minimal — check known Homebrew/Colima locations before falling back to PATH.
+if [ -x /opt/homebrew/bin/docker ]; then
+    DOCKER=/opt/homebrew/bin/docker
+elif command -v docker >/dev/null 2>&1; then
+    DOCKER="$(command -v docker)"
+else
+    echo "crate: docker binary not found." >&2
+    exit 1
+fi
+
 COMPOSE_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTAINER=crate
 
 # Ensure Docker is reachable.
 if ! "$DOCKER" info >/dev/null 2>&1; then
-    echo "crate: Docker is not running. Start OrbStack and try again." >&2
+    echo "crate: Docker is not running. Start Colima with 'colima start' and try again." >&2
     exit 1
 fi
 

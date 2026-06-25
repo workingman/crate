@@ -6,22 +6,23 @@ services:
         UID: ${UID}
         GID: ${GID}
         USERNAME: crate
+        CORP_CA_B64: ${CORP_CA_B64:-}
     image: crate:latest
     container_name: crate          # fixed name — docker exec crate bash always works
     hostname: crate
     stdin_open: true
     tty: true
     init: true
-    restart: unless-stopped        # survive reboots; launchd starts Docker, Docker restarts crate
+    restart: unless-stopped        # survive reboots; launchd starts Colima, Docker restarts crate
     ports:
-      - "127.0.0.1:19876:19876"   # opencode MCP OAuth callback
-      - "127.0.0.1:8976:8976"     # wrangler login callback
-      # Node tools in the container are forced to IPv4 via NODE_OPTIONS
-      # (--dns-result-order=ipv4first) — see Dockerfile. This sidesteps
-      # OrbStack's flaky IPv6 forwarding.
+      - "19876:19876"   # opencode MCP OAuth callback
+      - "8976:8976"     # wrangler login callback
     volumes:
       - ~/docker-home:/home/crate
       - ~/dev:/home/crate/dev
+      # Corporate CA cert — optional. Place your cert at ~/docker-home/.corp-ca.pem
+      # on the host. entrypoint.sh installs it into the system trust store at startup.
+      # Without it, TLS-intercepting proxies (Cloudflare WARP, Zscaler, etc.) will fail.
     environment:
       GITLAB_HOST: gitlab.cfdata.org
     working_dir: /home/crate

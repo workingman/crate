@@ -33,8 +33,7 @@ share them with no conflicts.
 ./scripts/crate-rebuild
 ```
 
-Corp CA (`~/dev/.cloudflare-ca.pem`) is passed automatically via `--secret` if present.
-No need to pass it manually — scripts handle it.
+Corp CA cert is injected at runtime — no build-time secret needed. See the TLS section below.
 
 > **Never run `docker build` directly.** The scripts pass the correct build args (UID, GID, USERNAME=crate).
 > Running `docker build` by hand risks leaking shell env vars like `$USERNAME` as build args, producing a broken image.
@@ -118,17 +117,30 @@ For tools that don't use a local callback server:
 
 ### Corporate CA / TLS inspection
 
-If you're behind a TLS-intercepting proxy (Cloudflare WARP, Zscaler, etc.), provide your corp CA
-at build time:
+If you're behind a TLS-intercepting proxy (Cloudflare WARP, Zscaler, etc.), the corp CA
+must be in the image's trust store at build time or `curl`/apt steps fail with
+`self-signed certificate in certificate chain`.
+
+A CA cert is **public** (not a secret), so it's passed as a base64 build arg via `.env`.
+On a clean machine (home Mac, CI) leave it empty and the build skips it.
+
+**Regenerate `CORP_CA_B64` when the cert rotates:**
 
 ```bash
-./scripts/crate-rebuild
+# 1. Export the cert from Keychain Access:
+#    search "Cloudflare for Teams ECC Certificate Authority" → Export as .pem
+#    → save to ~/docker-home/.corp-ca.pem
+#
+# 2. Refresh the .env line (run from the crate repo dir):
+sed -i '' '/^CORP_CA_B64=/d' .env
+printf 'CORP_CA_B64=%s\n' "$(base64 < ~/docker-home/.corp-ca.pem | tr -d '\n')" >> .env
+
+# 3. Rebuild:
+docker compose build
 ```
 
-`~/dev/.cloudflare-ca.pem` is the Cloudflare WARP corporate CA, stored in the shared `~/dev/`
-mount so it's accessible from both Mac and inside crate. Export it from your Mac's Keychain
-(look for "Cloudflare for Teams ECC Certificate Authority"). The build scripts detect it
-automatically — no manual `--secret` flag needed.
+Cache note: the cert layer only rebuilds when the `CORP_CA_B64` value actually changes
+(i.e. on cert rotation), not on every build.
 
 ---
 

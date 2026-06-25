@@ -40,8 +40,8 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias grep='grep --color=auto'
 
-# OrbStack only forwards to 0.0.0.0-bound listeners. Wrangler login defaults to
-# localhost, so inject the callback host only for that subcommand.
+# Wrangler login defaults to localhost; bind to 0.0.0.0 so the OAuth callback
+# is reachable from outside the container (port-forwarded via compose.yaml).
 wrangler() {
     if [ "$1" = "login" ]; then
         shift

@@ -20,25 +20,27 @@ RUN yes 2>/dev/null | unminimize; rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bash sudo locales ca-certificates gnupg lsb-release apt-transport-https \
         curl wget openssh-client dnsutils iputils-ping iproute2 net-tools netcat-openbsd traceroute whois \
-        git vim less tmux htop jq ripgrep fzf tree file unzip zip rsync \
+        git vim less tmux htop jq ripgrep fzf tree file unzip zip rsync pandoc \
         python3 python3-pip python3-venv build-essential pkg-config \
     && sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen \
     && locale-gen \
     && rm -rf /var/lib/apt/lists/*
 
-# ---------- optional: install a corporate CA for TLS-intercepting proxies (Cloudflare WARP, Zscaler, etc.) ----------
-# Provided via BuildKit secret mount so the cert is NEVER copied into the build context
-# (and therefore can't accidentally be committed to a public repo).
+# ---------- corporate CA (build-time injection) ----------
+# Behind a TLS-intercepting proxy (Cloudflare WARP, Zscaler)? The corp CA must
+# be in the trust store BEFORE any curl/apt-over-https calls below, or they
+# fail with "self-signed certificate in certificate chain".
 #
-# Usage:  docker build --secret id=corp-ca,src=/path/to/your-corp-ca.pem ...
-# Skipped silently if no secret is provided.
-RUN --mount=type=secret,id=corp-ca,required=false \
-    if [ -s /run/secrets/corp-ca ]; then \
-        cp /run/secrets/corp-ca /usr/local/share/ca-certificates/corp-ca.crt && \
+# A CA cert is PUBLIC (not a secret), so we pass it as a base64 build arg via
+# .env. Empty by default → skipped on clean machines (home Mac, CI).
+# See README "Corporate CA cert" for how to regenerate CORP_CA_B64.
+ARG CORP_CA_B64=""
+RUN if [ -n "$CORP_CA_B64" ]; then \
+        echo "$CORP_CA_B64" | base64 -d > /usr/local/share/ca-certificates/corp-ca.crt && \
         update-ca-certificates && \
-        echo "Installed corporate CA cert(s)."; \
+        echo "Installed corporate CA cert."; \
     else \
-        echo "No corp CA secret provided; using default trust store."; \
+        echo "No corp CA provided; using default trust store."; \
     fi
 
 # yq is not in default Ubuntu repos; install Mike Farah's standalone binary (multi-arch).
@@ -129,6 +131,9 @@ RUN ARCH=$(dpkg --print-architecture) \
 
 # ---------- wrangler + miniflare (Cloudflare); claude-code + opencode at end of file ----------
 RUN npm install -g --omit=dev wrangler miniflare
+
+# ---------- varlock (AI-safe env/secrets manager) ----------
+RUN curl -sSfL https://varlock.dev/install.sh | sh -s
 
 # ---------- xdg-open shim ----------
 # The container has no browser. This shim replaces xdg-open so tools like
