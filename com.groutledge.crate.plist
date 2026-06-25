@@ -4,11 +4,12 @@
     LaunchAgent: com.groutledge.crate
     Starts the crate singleton container at login and keeps it running.
 
-    Install:
-        cp com.groutledge.crate.plist ~/Library/LaunchAgents/
-        launchctl load -w ~/Library/LaunchAgents/com.groutledge.crate.plist
+    This file is the SOURCE template. It is installed into ~/Library/LaunchAgents
+    by `scripts/deploy`, which also materializes the runtime artifacts it points
+    at (~/.local/opt/crate, ~/.local/bin/docker-bin). The agent NEVER reads the
+    git repo (~/dev/crate) — only the deployed copies under ~/.local.
 
-    Uninstall:
+    Install/reload is handled by `scripts/deploy`. Manual uninstall:
         launchctl unload ~/Library/LaunchAgents/com.groutledge.crate.plist
         rm ~/Library/LaunchAgents/com.groutledge.crate.plist
 
@@ -25,14 +26,15 @@
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <!-- Resolve docker via the shared helper (avoids dead OrbStack symlink at
-             /usr/local/bin/docker; handles launchd's minimal PATH). Then wait for
-             the daemon (Colima) to be ready and bring the container up.
-             docker compose up -d is idempotent: no-op if already running. -->
+        <!-- Points at DEPLOYED runtime artifacts under ~/.local, never the repo.
+             Resolve docker via the deployed helper (avoids dead OrbStack symlink
+             at /usr/local/bin/docker; handles launchd's minimal PATH). Then wait
+             for the daemon (Colima) and bring the container up. up -d is
+             idempotent: no-op if already running. -->
         <string>
-            DOCKER="$(/Users/groutledge/dev/crate/scripts/docker-bin)" || exit 1;
+            DOCKER="$(/Users/groutledge/.local/bin/docker-bin)" || exit 1;
             until "$DOCKER" info &gt;/dev/null 2&gt;&amp;1; do sleep 2; done;
-            cd /Users/groutledge/dev/crate &amp;&amp; "$DOCKER" compose up -d
+            cd /Users/groutledge/.local/opt/crate &amp;&amp; "$DOCKER" compose up -d
         </string>
     </array>
 

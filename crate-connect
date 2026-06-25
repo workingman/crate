@@ -10,12 +10,31 @@
 # this script brings it up first.
 set -euo pipefail
 
-COMPOSE_DIR="$(cd "$(dirname "$0")" && pwd)"
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTAINER=crate
 
-# Resolve the docker binary via the shared helper (handles minimal PATH under
-# Ghostty/launchd and dead OrbStack symlinks).
-DOCKER="$("$COMPOSE_DIR/scripts/docker-bin")" || exit 1
+# Resolve docker-bin: works whether running deployed (~/.local/bin, alongside
+# self) or straight from the repo (scripts/). Falls back to PATH.
+DOCKER_BIN=""
+for d in "$SELF_DIR" "$SELF_DIR/scripts" "$HOME/.local/bin"; do
+    if [ -x "$d/docker-bin" ]; then DOCKER_BIN="$d/docker-bin"; break; fi
+done
+if [ -n "$DOCKER_BIN" ]; then
+    DOCKER="$("$DOCKER_BIN")" || exit 1
+elif command -v docker >/dev/null 2>&1; then
+    DOCKER="$(command -v docker)"
+else
+    echo "crate: no working docker binary found." >&2
+    exit 1
+fi
+
+# Locate the compose project dir: alongside self (repo checkout) or the deployed
+# runtime root (~/.local/opt/crate). Override with CRATE_OPT if needed.
+if [ -f "$SELF_DIR/compose.yaml" ]; then
+    COMPOSE_DIR="$SELF_DIR"
+else
+    COMPOSE_DIR="${CRATE_OPT:-$HOME/.local/opt/crate}"
+fi
 
 # Ensure Docker is reachable.
 if ! "$DOCKER" info >/dev/null 2>&1; then

@@ -5,6 +5,9 @@
 # Each Ghostty window runs `crate-connect`, which does `docker exec -it crate bash -l`.
 # Multiple windows share the same container with no port conflicts.
 #
+# Ghostty points at the DEPLOYED entry point (~/.local/bin/crate-connect), not the
+# repo — run `scripts/deploy` first. See AGENTS.md "Source vs. Runtime".
+#
 # Prereq:  brew install --cask ghostty   (or install into ~/Applications via --appdir)
 # Refuses to overwrite an existing config.
 set -euo pipefail
@@ -12,10 +15,11 @@ set -euo pipefail
 cfg_dir="$HOME/.config/ghostty"
 cfg_file="$cfg_dir/config"
 script_dir="$(cd "$(dirname "$0")" && pwd)"
-connect_script="$script_dir/crate-connect"
+connect_script="$HOME/.local/bin/crate-connect"
 
 if [ ! -x "$connect_script" ]; then
     echo "ERROR: $connect_script not found or not executable." >&2
+    echo "       Run ./scripts/deploy first to materialize the runtime entry points." >&2
     exit 1
 fi
 
@@ -59,12 +63,10 @@ echo "  crate-connect: $connect_script"
 echo "  ghostty: ${ghostty_app:-NOT INSTALLED — run: brew install --cask ghostty}"
 echo ""
 echo "Next steps:"
-echo "  1. Install the launchd agent so crate starts at login:"
-echo "       cp $script_dir/com.groutledge.crate.plist ~/Library/LaunchAgents/"
-echo "       launchctl load -w ~/Library/LaunchAgents/com.groutledge.crate.plist"
-echo "  2. Start the container now (or just open Ghostty — crate-connect will start it):"
-echo "       cd $script_dir && docker compose up -d"
-echo "  3. Open Ghostty. You should land at crate@crate:~\$"
+echo "  1. Deploy runtime artifacts + install/reload the launchd agent:"
+echo "       $script_dir/scripts/deploy"
+echo "  2. Open Ghostty. crate-connect starts the container if needed."
+echo "     You should land at crate@crate:~\$"
 echo ""
 echo "IMPORTANT: if Ghostty is already running, Cmd-Q it fully (not just close the window)"
 echo "           before reopening — running instances ignore config changes."

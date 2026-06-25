@@ -1,5 +1,34 @@
 # Crate Working Rules
 
+## Source vs. Runtime (Deployment Model)
+
+Runtime services must NEVER depend on the git working tree. A repo can be on a
+branch, mid-rebase, dirty, moved, or deleted — login-time services and entry
+points must not care.
+
+- **`~/dev/crate`** = source of truth. Editable, git-tracked, allowed to be broken.
+- **`~/.local/opt/crate`** = deployed runtime artifacts (compose.yaml, .env,
+  `.deployed-from` provenance stamp). What services actually point at.
+- **`~/.local/bin`** = deployed entry points + helpers (`crate-connect`,
+  `docker-bin`), already on PATH.
+- **`~/docker-home`** = data plane (container home). Distinct from the control
+  plane above.
+- **`~/Library/LaunchAgents`** = launchd's required location for agents; the
+  plist there points into `~/.local`, never `~/dev`.
+
+Layout follows XDG-ish convention: `~/.local/bin` for executables, `~/.local/opt/<app>`
+for self-contained deployment roots (mirrors system `/opt`).
+
+### Deploy flow
+
+`scripts/deploy` materializes the runtime subset from the repo into `~/.local`,
+stamps the git SHA into `~/.local/opt/crate/.deployed-from`, installs/reloads the
+launchd agent. Runtime never reads the repo directly.
+
+- Edit repo → run `scripts/deploy` to push changes into runtime.
+- Use **copies, not symlinks** — true decoupling is the whole point. The SHA
+  stamp is how you detect "repo changed but not deployed" drift.
+
 ## Container Changes
 
 - If it should survive rebuilds, change the repo.

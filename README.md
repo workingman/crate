@@ -38,15 +38,20 @@ Corp CA cert is injected at runtime — no build-time secret needed. See the TLS
 > **Never run `docker build` directly.** The scripts pass the correct build args (UID, GID, USERNAME=crate).
 > Running `docker build` by hand risks leaking shell env vars like `$USERNAME` as build args, producing a broken image.
 
-### 2. Install the launchd agent (start at login)
+### 2. Deploy runtime artifacts + install the launchd agent
 
 ```bash
-cp com.groutledge.crate.plist ~/Library/LaunchAgents/
-launchctl load -w ~/Library/LaunchAgents/com.groutledge.crate.plist
+./scripts/deploy
 ```
 
-This starts `docker compose up -d` at every login. The container's `restart: unless-stopped` policy
-keeps it alive if it crashes between logins.
+This decouples the runtime from the git repo (see AGENTS.md "Source vs. Runtime"). It copies the
+entry points (`crate-connect`, `docker-bin`) into `~/.local/bin`, the runtime config
+(`compose.yaml`, `.env`) into `~/.local/opt/crate`, stamps the deployed git SHA, and installs +
+reloads the launchd agent. The agent starts `docker compose up -d` at every login; the container's
+`restart: unless-stopped` policy keeps it alive between logins.
+
+**Re-run `./scripts/deploy` after any change you want reflected at runtime** — services never read
+the repo directly.
 
 ### 3. Configure Ghostty
 
@@ -54,16 +59,9 @@ keeps it alive if it crashes between logins.
 bash setup-ghostty.sh
 ```
 
-This writes `~/.config/ghostty/config` pointing at the `crate-connect` script. Each new Ghostty window
-runs `crate-connect`, which does `docker exec -it crate bash -l`.
-
-### 4. Start the container now (without rebooting)
-
-```bash
-docker compose up -d
-```
-
-Then open Ghostty. You should land at `crate@crate:~$`.
+This writes `~/.config/ghostty/config` pointing at `~/.local/bin/crate-connect` (the deployed entry
+point). Each new Ghostty window runs it, which does `docker exec -it crate bash -l`. Open Ghostty
+and you should land at `crate@crate:~$`.
 
 ---
 
@@ -76,12 +74,13 @@ Then open Ghostty. You should land at `crate@crate:~$`.
 | Stop container | `docker compose down` |
 | Restart container | `docker compose restart` |
 | Rebuild image | `./scripts/crate-rebuild` then `docker compose up -d` |
+| Push repo changes to runtime | `./scripts/deploy` |
 
 Home directory is persisted via `~/docker-home` volume mount. `~/dev` is mounted at `/home/crate/dev`.
 
-> **Note:** Always use `./scripts/crate-build` or `./scripts/crate-rebuild` — never `docker build` directly.
-> The scripts handle the corp CA secret and pass the correct build args. Running `docker build` directly
-> risks leaking shell environment variables (e.g. `$USERNAME`) as build args, producing a broken image.
+> **Note:** Build via `./scripts/crate-build` / `crate-rebuild` (thin wrappers over `docker compose build`).
+> They pick up build args and the corp CA (`CORP_CA_B64`) from `.env`. `USERNAME` is pinned in
+> `compose.yaml`, so there's no risk of leaking shell env vars as build args.
 
 ---
 

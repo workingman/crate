@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# deploy — materialize crate's runtime artifacts from the repo into ~/.local.
+#
+# Decouples runtime from the git working tree (see AGENTS.md "Source vs. Runtime").
+# Copies (not symlinks) so the repo can be dirty, moved, or deleted without
+# affecting login-time services. Stamps the deployed git SHA for drift detection.
+#
+# What it deploys:
+#   ~/.local/bin/{docker-bin,crate-connect}   entry points + helpers (on PATH)
+#   ~/.local/opt/crate/{compose.yaml,.env}    runtime config the services use
+#   ~/.local/opt/crate/.deployed-from         provenance: git SHA + timestamp
+#   ~/Library/LaunchAgents/com.groutledge.crate.plist  (installed + reloaded)
+#
+# Usage: ./scripts/deploy
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BIN_DIR="$HOME/.local/bin"
+OPT_DIR="$HOME/.local/opt/crate"
+AGENTS_DIR="$HOME/Library/LaunchAgents"
+PLIST="com.groutledge.crate.plist"
+
+echo "==> Deploying crate runtime from $REPO_DIR"
+
+mkdir -p "$BIN_DIR" "$OPT_DIR" "$AGENTS_DIR"
+
+# --- entry points + helpers ---
+install -m 0755 "$REPO_DIR/scripts/docker-bin" "$BIN_DIR/docker-bin"
+install -m 0755 "$REPO_DIR/crate-connect"      "$BIN_DIR/crate-connect"
+echo "    bin:  $BIN_DIR/{docker-bin,crate-connect}"
+
+# --- runtime config ---
+install -m 0644 "$REPO_DIR/compose.yaml" "$OPT_DIR/compose.yaml"
+if [ -f "$REPO_DIR/.env" ]; then
+    install -m 0600 "$REPO_DIR/.env" "$OPT_DIR/.env"
+    echo "    opt:  $OPT_DIR/{compose.yaml,.env}"
+else
+    echo "    opt:  $OPT_DIR/compose.yaml  (no .env in repo — skipped)"
+    echo "    WARN: $OPT_DIR/.env missing — set UID/GID/CORP_CA_B64 there or builds/runs may misbehave." >&2
+fi
+
+# --- provenance stamp ---
+SHA="$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+DIRTY=""
+git -C "$REPO_DIR" diff --quiet 2>/dev/null || DIRTY=" (dirty)"
+{
+    echo "deployed_from: $SHA$DIRTY"
+    echo "deployed_at:   $(date -u +%FT%TZ)"
+    echo "source_repo:   $REPO_DIR"
+} > "$OPT_DIR/.deployed-from"
+echo "    stamp: $SHA$DIRTY -> $OPT_DIR/.deployed-from"
+
+# --- launchd agent ---
+install -m 0644 "$REPO_DIR/$PLIST" "$AGENTS_DIR/$PLIST"
+launchctl unload "$AGENTS_DIR/$PLIST" 2>/dev/null || true
+launchctl load -w "$AGENTS_DIR/$PLIST"
+echo "    agent: reloaded $AGENTS_DIR/$PLIST"
+
+echo "==> Done. Runtime is decoupled from the repo."
+if [ -n "$DIRTY" ]; then
+    echo "    NOTE: deployed from a DIRTY tree — commit when stable for clean provenance."
+fi
