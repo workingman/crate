@@ -136,25 +136,7 @@ RUN npm install -g --omit=dev wrangler miniflare
 # ---------- varlock (AI-safe env/secrets manager) ----------
 RUN curl -sSfL https://varlock.dev/install.sh | sh -s
 
-# ---------- xdg-open shim ----------
-# The container has no browser. This shim replaces xdg-open so tools like
-# wrangler don't fail when they try to launch a browser — it prints the URL
-# for the user to open manually on their Mac, then exits 0 so the tool's
-# OAuth callback listener stays alive. Port bindings in compose.yaml route
-# the callback back into the container automatically.
-COPY xdg-open /usr/local/bin/xdg-open
-RUN chmod 0755 /usr/local/bin/xdg-open
-
-# ---------- skel files + entrypoint ----------
-RUN mkdir -p /etc/skel-devbox
-COPY bashrc.default   /etc/skel-devbox/bashrc.default
-COPY profile.default  /etc/skel-devbox/profile.default
-COPY tui.json         /etc/skel-devbox/tui.json
-COPY glab-config.yml  /etc/skel-devbox/glab-config.yml
-COPY entrypoint.sh    /usr/local/bin/entrypoint.sh
-RUN chmod 0755 /usr/local/bin/entrypoint.sh
-
-# ---------- user (build args last so UID/GID changes don't bust upstream cache) ----------
+# ---------- user (build args late so UID/GID changes don't bust upstream tool cache) ----------
 ARG UID=501
 ARG GID=20
 ARG USERNAME=crate
@@ -180,13 +162,31 @@ RUN set -eux; \
 
 ENV PATH=/home/${USERNAME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# ---------- VOLATILE (last so version bumps cause minimal rebuild) ----------
-# claude-code and opencode ship near-daily. Placed after user creation but before
-# USER directive so the global npm install runs as root. Re-running this layer
-# is the only work needed for a routine "pick up new versions" rebuild.
-# HOME is intentionally NOT set yet here — npm would otherwise write its cache
-# to /home/${USERNAME}/.npm as root and lock the user out of their own home.
+# ---------- VOLATILE: npm globals (claude-code + opencode ship near-daily) ----------
+# Runs as root (before USER); HOME intentionally NOT set so npm doesn't write its
+# cache into the user's home as root and lock them out. A routine "pick up new
+# versions" rebuild only reruns this layer (and the instant COPY layers below it).
 RUN npm install -g --omit=dev @anthropic-ai/claude-code opencode-ai
+
+# ---------- baked-in files (LAST so edits are cheap) ----------
+# These COPY layers sit below every tool install, user creation, and the npm
+# layer. Editing a dotfile, the xdg-open shim, or entrypoint.sh busts only these
+# near-instant layers — nothing expensive above rebuilds. Must precede USER so
+# the files land as root.
+#
+# xdg-open shim: the container has no browser, so this prints the URL to open on
+# the Mac and exits 0 so a tool's OAuth callback listener stays alive. Port
+# bindings in compose.yaml route the callback back into the container.
+COPY xdg-open /usr/local/bin/xdg-open
+RUN chmod 0755 /usr/local/bin/xdg-open
+
+RUN mkdir -p /etc/skel-devbox
+COPY bashrc.default   /etc/skel-devbox/bashrc.default
+COPY profile.default  /etc/skel-devbox/profile.default
+COPY tui.json         /etc/skel-devbox/tui.json
+COPY glab-config.yml  /etc/skel-devbox/glab-config.yml
+COPY entrypoint.sh    /usr/local/bin/entrypoint.sh
+RUN chmod 0755 /usr/local/bin/entrypoint.sh
 
 ENV HOME=/home/${USERNAME}
 WORKDIR /home/${USERNAME}
