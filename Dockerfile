@@ -19,7 +19,7 @@ RUN yes 2>/dev/null | unminimize; rm -rf /var/lib/apt/lists/*
 # ---------- base apt packages ----------
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bash sudo locales ca-certificates gnupg lsb-release apt-transport-https \
-        curl wget openssh-client dnsutils iputils-ping iproute2 net-tools netcat-openbsd traceroute whois \
+        curl wget openssh-client dnsutils iputils-ping iproute2 net-tools netcat-openbsd socat traceroute whois \
         git vim less tmux htop jq ripgrep fzf tree file unzip zip rsync pandoc \
         python3 python3-pip python3-venv build-essential pkg-config \
     && sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen \
