@@ -21,8 +21,8 @@
 
     ASSUMPTION: bare `colima start` resumes the default profile with whatever
     resources (CPU/memory/disk) were configured the last time it was started
-    manually. If you use a named profile (`colima start --profile <name>`),
-    add `--profile <name>` to the ProgramArguments string below.
+    manually. If you use a named profile via colima's "profile" flag, add
+    that flag and its value to the ProgramArguments string below.
 
     Install/reload is handled by crate's `scripts/deploy`. Manual uninstall:
         launchctl unload ~/Library/LaunchAgents/com.groutledge.colima.plist

@@ -8,13 +8,22 @@ crate runs as a **persistent singleton**: one long-lived container, started at M
 Each Ghostty window attaches to it with `docker exec` (via the `crate-connect` script). Multiple windows share
 the same container — no port conflicts, no ephemeral containers, no tmux required.
 
+Three independent `launchd` LaunchAgents make up the full boot chain — none of them run inside any
+container; they're host-side triggers that call `docker compose up -d` on your behalf:
+
 ```
 Mac login
-  → launchd starts crate container (docker compose up -d)
+  → colima start                                      (com.groutledge.colima.plist)
+  → launchd starts crate container (docker compose up -d)   (com.groutledge.crate.plist)
+  → launchd starts vault container (docker compose up -d)   (see ~/dev/vault)
   → Ghostty window 1:  crate-connect  →  docker exec -it crate bash -l
   → Ghostty window 2:  crate-connect  →  docker exec -it crate bash -l
   → Ghostty window N:  crate-connect  →  docker exec -it crate bash -l
 ```
+
+launchd gives no ordering guarantee between separate agents, so crate's (and vault's) agent doesn't
+assume Colima already finished starting — it polls `docker info` until the daemon responds, which
+works regardless of firing order.
 
 Ports `8976` (wrangler) and `19876` (opencode MCP) are bound once at container start. All windows
 share them with no conflicts.
@@ -50,17 +59,19 @@ Corp CA cert is injected at runtime — no build-time secret needed. See the TLS
 > **Never run `docker build` directly.** The scripts pass the correct build args (UID, GID, USERNAME=crate).
 > Running `docker build` by hand risks leaking shell env vars like `$USERNAME` as build args, producing a broken image.
 
-### 2. Deploy runtime artifacts + install the launchd agent
+### 2. Deploy runtime artifacts + install the launchd agents
 
 ```bash
 ./scripts/deploy
 ```
 
 This decouples the runtime from the git repo (see AGENTS.md "Source vs. Runtime"). It copies the
-entry points (`crate-connect`, `docker-bin`) into `~/.local/bin`, the runtime config
+entry points (`crate-connect`, `docker-bin`, `colima-bin`) into `~/.local/bin`, the runtime config
 (`compose.yaml`, `.env`) into `~/.local/opt/crate`, stamps the deployed git SHA, and installs +
-reloads the launchd agent. The agent starts `docker compose up -d` at every login; the container's
-`restart: unless-stopped` policy keeps it alive between logins.
+reloads **two** launchd agents: `com.groutledge.colima` (starts Colima itself) and
+`com.groutledge.crate` (starts the crate container). Both fire at every login; the container's
+`restart: unless-stopped` policy keeps it alive between logins, and `colima start` is a fast no-op
+if Colima's already running.
 
 **Re-run `./scripts/deploy` after any change you want reflected at runtime** — services never read
 the repo directly.
