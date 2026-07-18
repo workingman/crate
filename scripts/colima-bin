@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# colima-bin — print the absolute path to a working colima binary, then exit 0.
+#
+# Same rationale as docker-bin: launchd runs with a minimal PATH that usually
+# omits Homebrew. Probes known locations, falls back to PATH.
+#
+# Usage:  COLIMA="$(/path/to/scripts/colima-bin)" || exit 1
+set -euo pipefail
+
+for candidate in /opt/homebrew/bin/colima /usr/local/bin/colima; do
+    if [ -x "$candidate" ] && "$candidate" --version >/dev/null 2>&1; then
+        echo "$candidate"
+        exit 0
+    fi
+done
+
+if command -v colima >/dev/null 2>&1; then
+    command -v colima
+    exit 0
+fi
+
+echo "colima-bin: no working colima binary found" >&2
+exit 1

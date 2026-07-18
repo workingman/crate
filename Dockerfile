@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         bash sudo locales ca-certificates gnupg lsb-release apt-transport-https \
         curl wget openssh-client dnsutils iputils-ping iproute2 net-tools netcat-openbsd socat traceroute whois \
         git vim less tmux htop jq ripgrep fzf tree file unzip zip rsync pandoc \
-        python3 python3-pip python3-venv build-essential pkg-config \
+        python3 python3-pip python3-venv build-essential pkg-config cron \
     && sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen \
     && locale-gen \
     && rm -rf /var/lib/apt/lists/*
@@ -85,12 +85,15 @@ RUN ARCH=$(dpkg --print-architecture) \
          | tar -xz -C /usr/local/bin --strip-components=1 bin/glab \
     && chmod +x /usr/local/bin/glab
 
-# ---------- HashiCorp Terraform ----------
+# ---------- HashiCorp Terraform + Vault CLI ----------
+# Vault CLI talks to the separate `vault` container (see ~/dev/vault) over
+# the shared `crate-net` Docker network — VAULT_ADDR is set in compose.yaml.
+# Same trusted apt repo already in use for Terraform, no new trust anchor.
 RUN curl -fsSL https://apt.releases.hashicorp.com/gpg \
          | gpg --dearmor -o /etc/apt/keyrings/hashicorp-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
          > /etc/apt/sources.list.d/hashicorp.list \
-    && apt-get update && apt-get install -y --no-install-recommends terraform \
+    && apt-get update && apt-get install -y --no-install-recommends terraform vault \
     && rm -rf /var/lib/apt/lists/*
 
 
@@ -179,6 +182,9 @@ RUN npm install -g --omit=dev @anthropic-ai/claude-code opencode-ai
 # bindings in compose.yaml route the callback back into the container.
 COPY xdg-open /usr/local/bin/xdg-open
 RUN chmod 0755 /usr/local/bin/xdg-open
+
+COPY scripts/mem-check /usr/local/bin/mem-check
+RUN chmod 0755 /usr/local/bin/mem-check
 
 RUN mkdir -p /etc/skel-devbox
 COPY bashrc.default   /etc/skel-devbox/bashrc.default

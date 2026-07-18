@@ -72,6 +72,16 @@ opencode() {
     command opencode "$@"
 }
 
+# `oc` — launch opencode as the session's main process. `exec` replaces this
+# shell with opencode (exec bypasses shell functions, so it runs the real binary
+# — no recursion). When you quit the TUI the shell is already gone, so the
+# crate-connect / docker exec session ends and the Ghostty window drops to a
+# dead pane you can just Cmd-W. Use plain `opencode` when you want to stay in
+# the shell afterward (or for subcommands like `opencode run`).
+oc() {
+    exec opencode "$@"
+}
+
 export EDITOR=vim
 export VISUAL=vim
 

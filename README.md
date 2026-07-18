@@ -23,6 +23,18 @@ share them with no conflicts.
 
 ## First-time Setup
 
+### 0. Create the shared network (one-time, idempotent)
+
+```bash
+docker network create crate-net
+```
+
+Shared with the separate [`vault`](../vault/README.md) container so crate can
+reach it at `http://vault:8200` by container name. Safe to re-run — both this
+container's launchd job and vault's own also create it idempotently at login,
+so after today you never have to think about this again. Skip this if you're
+not setting up Vault.
+
 ### 1. Build the image
 
 ```bash
@@ -81,6 +93,17 @@ Home directory is persisted via `~/docker-home` volume mount. `~/dev` is mounted
 > **Note:** Build via `./scripts/crate-build` / `crate-rebuild` (thin wrappers over `docker compose build`).
 > They pick up build args and the corp CA (`CORP_CA_B64`) from `.env`. `USERNAME` is pinned in
 > `compose.yaml`, so there's no risk of leaking shell env vars as build args.
+
+---
+
+## Vault (secrets)
+
+A separate singleton container, [`~/dev/vault`](../vault/README.md), runs
+HashiCorp Vault on the same Colima foundation, reachable from inside crate at
+`http://vault:8200` (already set as `VAULT_ADDR` in this container's env) via
+the shared `crate-net` Docker network. Backs Varlock and anything else that
+wants secrets instead of plaintext `.env` files. See that repo's README for
+setup, security model, and daily use.
 
 ---
 
@@ -152,6 +175,8 @@ Cache note: the cert layer only rebuilds when the `CORP_CA_B64` value actually c
 - **flarectl** (Cloudflare CLI — quick DNS/zone/account ops)
 - **GitHub CLI** (`gh`)
 - **Terraform**
+- **Vault CLI** (talks to the separate `vault` container — see "Vault" above)
+- **varlock** (AI-safe env/secrets manager)
 - **cloudflared** (Cloudflare Tunnel client)
 - **rclone** (cloud storage CLI — native R2, GCS, S3 support)
 - **trivy** (vulnerability scanner — npm deps, container images, IaC, secrets)

@@ -16,6 +16,12 @@
     The container uses restart: unless-stopped in compose.yaml, so Docker itself
     will restart it if it crashes. launchd only needs to run `docker compose up`
     once at login.
+
+    crate joins the `crate-net` Docker network, shared with the separate
+    `vault` container (see ~/dev/vault). Both this plist and vault's own
+    plist idempotently ensure the network exists before bringing their stack
+    up, so boot order between the two launchd jobs never matters — whichever
+    runs first creates the network, the other is a no-op.
 -->
 <plist version="1.0">
 <dict>
@@ -34,6 +40,7 @@
         <string>
             DOCKER="$(/Users/groutledge/.local/bin/docker-bin)" || exit 1;
             until "$DOCKER" info &gt;/dev/null 2&gt;&amp;1; do sleep 2; done;
+            "$DOCKER" network create crate-net &gt;/dev/null 2&gt;&amp;1 || true;
             cd /Users/groutledge/.local/opt/crate &amp;&amp; "$DOCKER" compose up -d
         </string>
     </array>

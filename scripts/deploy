@@ -6,10 +6,11 @@
 # affecting login-time services. Stamps the deployed git SHA for drift detection.
 #
 # What it deploys:
-#   ~/.local/bin/{docker-bin,crate-connect}   entry points + helpers (on PATH)
+#   ~/.local/bin/{docker-bin,colima-bin,crate-connect}  entry points + helpers (on PATH)
 #   ~/.local/opt/crate/{compose.yaml,.env}    runtime config the services use
 #   ~/.local/opt/crate/.deployed-from         provenance: git SHA + timestamp
-#   ~/Library/LaunchAgents/com.groutledge.crate.plist  (installed + reloaded)
+#   ~/Library/LaunchAgents/com.groutledge.colima.plist  (installed + reloaded)
+#   ~/Library/LaunchAgents/com.groutledge.crate.plist   (installed + reloaded)
 #
 # Usage: ./scripts/deploy
 set -euo pipefail
@@ -19,6 +20,7 @@ BIN_DIR="$HOME/.local/bin"
 OPT_DIR="$HOME/.local/opt/crate"
 AGENTS_DIR="$HOME/Library/LaunchAgents"
 PLIST="com.groutledge.crate.plist"
+COLIMA_PLIST="com.groutledge.colima.plist"
 
 echo "==> Deploying crate runtime from $REPO_DIR"
 
@@ -26,8 +28,9 @@ mkdir -p "$BIN_DIR" "$OPT_DIR" "$AGENTS_DIR"
 
 # --- entry points + helpers ---
 install -m 0755 "$REPO_DIR/scripts/docker-bin" "$BIN_DIR/docker-bin"
+install -m 0755 "$REPO_DIR/scripts/colima-bin" "$BIN_DIR/colima-bin"
 install -m 0755 "$REPO_DIR/crate-connect"      "$BIN_DIR/crate-connect"
-echo "    bin:  $BIN_DIR/{docker-bin,crate-connect}"
+echo "    bin:  $BIN_DIR/{docker-bin,colima-bin,crate-connect}"
 
 # --- runtime config ---
 install -m 0644 "$REPO_DIR/compose.yaml" "$OPT_DIR/compose.yaml"
@@ -50,7 +53,15 @@ git -C "$REPO_DIR" diff --quiet 2>/dev/null || DIRTY=" (dirty)"
 } > "$OPT_DIR/.deployed-from"
 echo "    stamp: $SHA$DIRTY -> $OPT_DIR/.deployed-from"
 
-# --- launchd agent ---
+# --- launchd agents ---
+# Colima first (bottom of the boot chain), then crate. Order here doesn't
+# matter to launchd itself — both are independent RunAtLoad agents — but it
+# matters for reading this script top-to-bottom in the same order things boot.
+install -m 0644 "$REPO_DIR/$COLIMA_PLIST" "$AGENTS_DIR/$COLIMA_PLIST"
+launchctl unload "$AGENTS_DIR/$COLIMA_PLIST" 2>/dev/null || true
+launchctl load -w "$AGENTS_DIR/$COLIMA_PLIST"
+echo "    agent: reloaded $AGENTS_DIR/$COLIMA_PLIST"
+
 install -m 0644 "$REPO_DIR/$PLIST" "$AGENTS_DIR/$PLIST"
 launchctl unload "$AGENTS_DIR/$PLIST" 2>/dev/null || true
 launchctl load -w "$AGENTS_DIR/$PLIST"

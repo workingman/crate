@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# mem-check — warn if VM memory is tight or opencode processes are accumulating.
+# Sourced at login from bashrc.default; runs silently when all is well.
+#
+# Designed for a multi-session workflow (10+ concurrent opencode/ghostty
+# sessions). Session *count* alone is not a good signal — the thing that
+# actually causes OOM is aggregate PSS approaching VM capacity. So the
+# primary safety net is a percentage-of-total-memory check; the per-process PSS
+# check exists to catch a runaway session, not normal multi-session usage.
+#
+# Thresholds:
+#   WARN_FREE_MIB     — warn when total free RAM drops below this (default: 1024 MiB)
+#   WARN_OC_PSS_MIB    — warn when a single opencode process exceeds this PSS (default: 1200 MiB)
+#   WARN_OC_TOTAL_PCT  — warn when combined opencode PSS exceeds this % of total VM mem (default: 75)
+
+_mem_check() {
+    local warn_free=${WARN_FREE_MIB:-1024}
+    local warn_oc_pss=${WARN_OC_PSS_MIB:-1200}
+    local warn_oc_total_pct=${WARN_OC_TOTAL_PCT:-75}
+
+    local warnings=()
+
+    # --- VM free memory (MemAvailable from /proc/meminfo, in MiB) ---
+    local avail_mib=0
+    local total_mib=0
+    if [ -r /proc/meminfo ]; then
+        avail_mib=$(awk '/^MemAvailable:/ { printf "%d", $2/1024 }' /proc/meminfo)
+        total_mib=$(awk '/^MemTotal:/ { printf "%d", $2/1024 }' /proc/meminfo)
+    fi
+
+    if [ "$avail_mib" -gt 0 ] && [ "$avail_mib" -lt "$warn_free" ]; then
+        warnings+=("  VM free RAM: ${avail_mib} MiB  (threshold: ${warn_free} MiB)")
+    fi
+
+    # PSS fairly divides shared pages between processes; summing RSS would
+    # double-count them and exaggerate memory pressure.
+    local oc_count=0
+    local oc_pss_max=0
+    local oc_pss_total=0
+
+    while IFS= read -r pid; do
+        local pss_mib=0
+        if [ -r "/proc/${pid}/smaps_rollup" ]; then
+            pss_mib=$(awk '/^Pss:/ { printf "%d", $2/1024; exit }' "/proc/${pid}/smaps_rollup" 2>/dev/null)
+            pss_mib=${pss_mib:-0}
+        fi
+        oc_count=$(( oc_count + 1 ))
+        oc_pss_total=$(( oc_pss_total + pss_mib ))
+        [ "$pss_mib" -gt "$oc_pss_max" ] && oc_pss_max=$pss_mib
+    done < <(pgrep -x opencode 2>/dev/null)
+
+    if [ "$oc_pss_max" -gt "$warn_oc_pss" ]; then
+        warnings+=("  opencode max PSS: ${oc_pss_max} MiB  (threshold: ${warn_oc_pss} MiB)")
+    fi
+
+    # --- aggregate opencode PSS as % of total VM memory (real OOM signal) ---
+    local oc_total_pct=0
+    if [ "$total_mib" -gt 0 ]; then
+        oc_total_pct=$(( oc_pss_total * 100 / total_mib ))
+    fi
+
+    if [ "$oc_total_pct" -gt "$warn_oc_total_pct" ]; then
+        warnings+=("  opencode total PSS: ${oc_pss_total} MiB across ${oc_count} sessions (${oc_total_pct}% of ${total_mib} MiB VM)  (threshold: ${warn_oc_total_pct}%)")
+    fi
+
+    # --- emit warnings ---
+    if [ "${#warnings[@]}" -gt 0 ]; then
+        echo ""
+        echo -e "\033[1;33m[mem-check] WARNING\033[0m"
+        for w in "${warnings[@]}"; do
+            echo -e "\033[33m${w}\033[0m"
+        done
+        if [ "$avail_mib" -lt "$warn_free" ] || [ "$oc_total_pct" -gt "$warn_oc_total_pct" ]; then
+            echo -e "\033[33m  Inspect sessions: ps -o pid,etime,rss,cmd -C opencode\033[0m"
+        fi
+        echo ""
+    fi
+}
+
+_mem_check
+unset -f _mem_check

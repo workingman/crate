@@ -20,6 +20,9 @@ cat > "$HOME/.bashrc" <<'EOF'
 
 # Personal overrides — create this file for your own tweaks.
 [ -f "$HOME/.bashrc.local" ] && . "$HOME/.bashrc.local"
+
+# Run after personal overrides so mem-check thresholds can be customized there.
+[ -f /usr/local/bin/mem-check ] && . /usr/local/bin/mem-check
 EOF
 
 # Seed .profile only if missing (less likely to need updates).
@@ -73,6 +76,17 @@ if [ ! -f "$HOME/.ssh/.known_hosts_gitlab_scanned" ]; then
     ssh-keyscan -H gitlab.cfdata.org >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
     chmod 600 "$HOME/.ssh/known_hosts"
     touch "$HOME/.ssh/.known_hosts_gitlab_scanned"
+fi
+
+# Load the cron schedule from the mounted repo (if present) and start the
+# cron daemon. Schedule lives outside the image (~/dev/cust/scripts/crontab)
+# so tweaking timing doesn't require an image rebuild — only adding/removing
+# the cron package itself does. Re-run on every start so edits take effect on
+# container restart without needing a rebuild.
+CRON_SRC="$HOME/dev/cust/scripts/crontab"
+if [ -f "$CRON_SRC" ]; then
+    crontab "$CRON_SRC"
+    sudo service cron start || sudo service cron restart
 fi
 
 exec "$@"
