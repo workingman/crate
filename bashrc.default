@@ -51,35 +51,28 @@ wrangler() {
     fi
 }
 
+# `oc` — short wrapper for `opencode`. Plain `opencode` is left as a direct,
+# unshadowed executable; always invoke via `oc` to get the mcp-auth relay below.
+#
 # `opencode mcp auth` uses a FIXED loopback callback on 127.0.0.1:19876 and has
 # no flag to change the bind host. Docker port-forwarding can't reach a loopback
 # listener, so the browser callback fails. Bridge it: for the duration of the
 # auth flow, relay the published port (which arrives on the container's external
 # interface) to the loopback listener. socat binds the container IP — NOT 0.0.0.0
 # — so it never collides with opencode's own 127.0.0.1:19876 bind.
-opencode() {
+oc() {
     if [ "$1" = "mcp" ] && [ "${2:-}" = "auth" ]; then
         local ip port=19876 relay rc
         ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
         if [ -n "$ip" ] && command -v socat >/dev/null 2>&1; then
             socat "TCP-LISTEN:${port},bind=${ip},fork,reuseaddr" "TCP:127.0.0.1:${port}" &
             relay=$!
-            command opencode "$@"; rc=$?
+            opencode "$@"; rc=$?
             kill "$relay" 2>/dev/null
             return $rc
         fi
     fi
-    command opencode "$@"
-}
-
-# `oc` — launch opencode as the session's main process. `exec` replaces this
-# shell with opencode (exec bypasses shell functions, so it runs the real binary
-# — no recursion). When you quit the TUI the shell is already gone, so the
-# crate-connect / docker exec session ends and the Ghostty window drops to a
-# dead pane you can just Cmd-W. Use plain `opencode` when you want to stay in
-# the shell afterward (or for subcommands like `opencode run`).
-oc() {
-    exec opencode "$@"
+    opencode "$@"
 }
 
 export EDITOR=vim
