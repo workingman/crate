@@ -72,7 +72,7 @@ oc() {
             return $rc
         fi
     fi
-    opencode "$@"
+    exec opencode --auto "$@"
 }
 
 export EDITOR=vim
