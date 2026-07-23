@@ -133,7 +133,7 @@ RUN ARCH=$(dpkg --print-architecture) \
          | tar -xz -C /usr/local/bin flarectl \
     && chmod +x /usr/local/bin/flarectl
 
-# ---------- wrangler + miniflare (Cloudflare); claude-code + opencode at end of file ----------
+# ---------- wrangler + miniflare (Cloudflare); claude-code + opencode + pi at end of file ----------
 RUN npm install -g --omit=dev wrangler miniflare
 
 # ---------- varlock (AI-safe env/secrets manager) ----------
@@ -165,11 +165,11 @@ RUN set -eux; \
 
 ENV PATH=/home/${USERNAME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# ---------- VOLATILE: npm globals (claude-code + opencode ship near-daily) ----------
+# ---------- VOLATILE: npm globals (claude-code + opencode + pi ship near-daily) ----------
 # Runs as root (before USER); HOME intentionally NOT set so npm doesn't write its
 # cache into the user's home as root and lock them out. A routine "pick up new
 # versions" rebuild only reruns this layer (and the instant COPY layers below it).
-RUN npm install -g --omit=dev @anthropic-ai/claude-code opencode-ai
+RUN npm install -g --omit=dev @anthropic-ai/claude-code opencode-ai @earendil-works/pi-coding-agent
 
 # ---------- baked-in files (LAST so edits are cheap) ----------
 # These COPY layers sit below every tool install, user creation, and the npm
