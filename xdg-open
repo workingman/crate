@@ -7,6 +7,17 @@ MSG="
   [xdg-open] Open this URL in your Mac browser:
   $1
 "
+
+# OAuth flows redirect the browser back to a localhost callback port that only
+# exists inside this container. If the URL mentions one — either directly or
+# URL-encoded inside a redirect_uri param (localhost%3A1455) — point at the fix.
+PORT=$(printf '%s' "$1" | grep -oiE '(localhost|127\.0\.0\.1)(:|%3A)[0-9]{1,5}' | head -1 | grep -oE '[0-9]+$')
+if [ -n "$PORT" ]; then
+  MSG="$MSG
+  If the browser ends up at localhost:$PORT and can't connect, run this
+  on your Mac first, then reload the page:   crate-fwd $PORT
+"
+fi
 printf '%s\n' "$MSG"
 printf '%s\n' "$MSG" >&2
 printf '%s\n' "$MSG" > /tmp/xdg-open-url.txt

@@ -10,7 +10,7 @@ points must not care.
 - **`~/.local/opt/crate`** = deployed runtime artifacts (compose.yaml, .env,
   `.deployed-from` provenance stamp). What services actually point at.
 - **`~/.local/bin`** = deployed entry points + helpers (`crate-connect`,
-  `docker-bin`), already on PATH.
+  `docker-bin`, `colima-bin`, `crate-fwd`), already on PATH.
 - **`~/docker-home`** = data plane (container home). Distinct from the control
   plane above.
 - **`~/Library/LaunchAgents`** = launchd's required location for agents; the

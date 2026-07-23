@@ -6,7 +6,7 @@
 # affecting login-time services. Stamps the deployed git SHA for drift detection.
 #
 # What it deploys:
-#   ~/.local/bin/{docker-bin,colima-bin,crate-connect}  entry points + helpers (on PATH)
+#   ~/.local/bin/{docker-bin,colima-bin,crate-connect,crate-fwd}  entry points + helpers (on PATH)
 #   ~/.local/opt/crate/{compose.yaml,.env}    runtime config the services use
 #   ~/.local/opt/crate/.deployed-from         provenance: git SHA + timestamp
 #   ~/Library/LaunchAgents/com.groutledge.colima.plist  (rendered + installed)
@@ -29,6 +29,27 @@ COLIMA_PLIST="com.groutledge.colima.plist"
 
 echo "==> Deploying crate runtime from $REPO_DIR"
 
+# --- host prerequisites ---
+# Everything the *Mac side* of crate needs. Checked here so a fresh machine
+# gets told exactly what's missing instead of failing later at runtime.
+#   docker/colima  — the container platform (big installs; report, don't install)
+#   socat          — crate-fwd's forwarder for OAuth callback flows (tiny; auto-install)
+missing=""
+"$DOCKER_DIR/docker-bin" >/dev/null 2>&1 || missing="$missing docker"
+"$DOCKER_DIR/colima-bin" >/dev/null 2>&1 || missing="$missing colima"
+if ! command -v socat >/dev/null 2>&1 && [ ! -x /opt/homebrew/bin/socat ]; then
+    if command -v brew >/dev/null 2>&1; then
+        echo "    prereq: installing socat (needed by crate-fwd) ..."
+        brew install socat || missing="$missing socat"
+    else
+        missing="$missing socat"
+    fi
+fi
+if [ -n "$missing" ]; then
+    echo "    WARN: missing host prerequisites:$missing" >&2
+    echo "          install with: brew install$missing" >&2
+fi
+
 mkdir -p "$BIN_DIR" "$OPT_DIR" "$AGENTS_DIR"
 
 # --- deploy-time config ---
@@ -44,7 +65,8 @@ CRATE_HOME="${CRATE_HOME:-$HOME}"
 install -m 0755 "$DOCKER_DIR/docker-bin"   "$BIN_DIR/docker-bin"
 install -m 0755 "$DOCKER_DIR/colima-bin"   "$BIN_DIR/colima-bin"
 install -m 0755 "$DOCKER_DIR/crate-connect" "$BIN_DIR/crate-connect"
-echo "    bin:  $BIN_DIR/{docker-bin,colima-bin,crate-connect}"
+install -m 0755 "$DOCKER_DIR/crate-fwd"    "$BIN_DIR/crate-fwd"
+echo "    bin:  $BIN_DIR/{docker-bin,colima-bin,crate-connect,crate-fwd}"
 
 # --- runtime config ---
 install -m 0644 "$DOCKER_DIR/compose.yaml" "$OPT_DIR/compose.yaml"
