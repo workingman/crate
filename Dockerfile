@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         bash sudo locales ca-certificates gnupg lsb-release apt-transport-https \
         curl wget openssh-client dnsutils iputils-ping iproute2 net-tools netcat-openbsd socat traceroute whois \
         git vim less tmux htop jq ripgrep fzf tree file unzip zip rsync pandoc \
+        man-db manpages \
         python3 python3-pip python3-venv build-essential pkg-config cron \
     && sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen \
     && locale-gen \
