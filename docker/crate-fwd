@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# crate-fwd — forward Mac localhost:<port> into the crate container's loopback.
+#
+# The general fix for OAuth callback flows: CLI tools inside the container
+# (pi, wrangler, opencode, whatever comes next) spin up a temporary callback
+# server, usually bound to 127.0.0.1:<port>. Docker's published ports can't
+# reach loopback listeners, and publishing requires knowing the port at
+# container-create time. This sidesteps both: the inner socat runs *inside*
+# the container's network namespace via docker exec, so it reaches loopback
+# listeners directly, and nothing needs to be declared in compose.yaml.
+# Same idea as `kubectl port-forward`.
+#
+# Usage:
+#   crate-fwd <port> [<port>...]
+#
+# Run it when a login flow's browser tab fails with "localhost refused to
+# connect" — the port is right there in the failing URL (the container's
+# xdg-open shim prints a hint too). Ctrl-C when the flow completes.
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+    echo "usage: crate-fwd <port> [<port>...]" >&2
+    exit 2
+fi
+
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+DOCKER="$("$SELF_DIR/docker-bin")"
+
+SOCAT="$(command -v socat || true)"
+[ -z "$SOCAT" ] && [ -x /opt/homebrew/bin/socat ] && SOCAT=/opt/homebrew/bin/socat
+if [ -z "$SOCAT" ]; then
+    echo "crate-fwd: socat not found on the Mac — brew install socat" >&2
+    exit 1
+fi
+
+if ! "$DOCKER" inspect -f '{{.State.Running}}' crate 2>/dev/null | grep -q true; then
+    echo "crate-fwd: crate container is not running" >&2
+    exit 1
+fi
+
+pids=()
+cleanup() { kill "${pids[@]}" 2>/dev/null || true; }
+trap cleanup EXIT INT TERM
+
+for port in "$@"; do
+    case "$port" in
+        ''|*[!0-9]*) echo "crate-fwd: not a port: $port" >&2; exit 2 ;;
+    esac
+    # Colons inside an EXEC: address are socat metacharacters — escape them.
+    "$SOCAT" "TCP-LISTEN:${port},bind=127.0.0.1,fork,reuseaddr" \
+        EXEC:"$DOCKER exec -i crate socat - TCP\:127.0.0.1\:${port}" &
+    pids+=($!)
+    echo "crate-fwd: localhost:${port} -> crate:127.0.0.1:${port}  (Ctrl-C to stop)"
+done
+
+wait

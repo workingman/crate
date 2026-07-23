@@ -67,10 +67,11 @@ echo -e "UID=$(id -u)\nGID=$(id -g)" >> docker/.env
 ./docker/deploy
 ```
 
-This decouples the runtime from the git repo (see AGENTS.md "Source vs. Runtime"). It copies the
-entry points (`crate-connect`, `docker-bin`, `colima-bin`) into `~/.local/bin`, the runtime config
-(`compose.yaml`, `.env`) into `~/.local/opt/crate`, stamps the deployed git SHA, and installs +
-reloads **two** launchd agents: `com.groutledge.colima` (starts Colima itself) and
+This decouples the runtime from the git repo (see AGENTS.md "Source vs. Runtime"). It checks host
+prerequisites (docker, colima; auto-installs `socat` via Homebrew for `crate-fwd`), copies the
+entry points (`crate-connect`, `docker-bin`, `colima-bin`, `crate-fwd`) into `~/.local/bin`, the
+runtime config (`compose.yaml`, `.env`) into `~/.local/opt/crate`, stamps the deployed git SHA, and
+installs + reloads **two** launchd agents: `com.groutledge.colima` (starts Colima itself) and
 `com.groutledge.crate` (starts the crate container). Both fire at every login; the container's
 `restart: unless-stopped` policy keeps it alive between logins, and `colima start` is a fast no-op
 if Colima's already running.
@@ -127,9 +128,29 @@ setup, security model, and daily use.
 
 ## Headless Auth (no browser in the container)
 
-The container has no browser. Two approaches depending on the tool:
+The container has no browser. Approaches, in order of preference:
 
-### OAuth callback ports (browser flow works natively)
+### `crate-fwd` — the general fix for any OAuth callback (use this first)
+
+Most CLI tools handle OAuth by starting a temporary HTTP server inside the container
+(usually bound to `127.0.0.1:<port>`) and sending your browser to `localhost:<port>` at the
+end of the flow. That's unreachable from the Mac — the browser tab fails with
+"localhost refused to connect", and the failing URL shows the port.
+
+`crate-fwd` (installed to `~/.local/bin` by `./docker/deploy`) forwards Mac
+`localhost:<port>` into the container's loopback via `docker exec` + `socat` — the
+`kubectl port-forward` trick. No compose changes, no published ports, works for any
+tool and any port, including listeners bound to `127.0.0.1` inside the container:
+
+```
+crate-fwd 1455        # then reload the failed browser tab; Ctrl-C when done
+```
+
+The container's `xdg-open` shim prints the exact `crate-fwd <port>` command alongside
+the auth URL whenever it spots a localhost callback in the flow. Requires `socat` on
+the Mac (`./docker/deploy` auto-installs it via Homebrew).
+
+### OAuth callback ports (zero-touch, pre-wired per tool)
 
 Some tools start a local HTTP server to receive the OAuth callback. The following ports are published
 to Mac loopback (`127.0.0.1` only — not exposed on the LAN), so the browser flow works transparently
@@ -145,6 +166,10 @@ from your Mac.
 |---|---|---|
 | `opencode` MCP auth | 19876 | Just run `opencode mcp auth` — browser flow works |
 | `wrangler login` | 8976 | Just run `wrangler login` — the shell wrapper adds `--callback-host 0.0.0.0` automatically |
+
+New tools don't get added here — use `crate-fwd` instead. Per-tool wiring costs a compose
+edit + container recreate (and often a bashrc wrapper) for every tool; only these two
+predate `crate-fwd` and stay for zero-touch convenience.
 
 ### Headless / device-flow mode
 
