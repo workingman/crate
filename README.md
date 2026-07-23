@@ -48,10 +48,10 @@ not setting up Vault.
 
 ```bash
 # Incremental build:
-./scripts/crate-build
+./docker/crate-build
 
 # Full no-cache rebuild:
-./scripts/crate-rebuild
+./docker/crate-rebuild
 ```
 
 Corp CA cert is injected at runtime — no build-time secret needed. See the TLS section below.
@@ -62,7 +62,9 @@ Corp CA cert is injected at runtime — no build-time secret needed. See the TLS
 ### 2. Deploy runtime artifacts + install the launchd agents
 
 ```bash
-./scripts/deploy
+cp docker/.env.example docker/.env
+echo -e "UID=$(id -u)\nGID=$(id -g)" >> docker/.env
+./docker/deploy
 ```
 
 This decouples the runtime from the git repo (see AGENTS.md "Source vs. Runtime"). It copies the
@@ -73,7 +75,12 @@ reloads **two** launchd agents: `com.groutledge.colima` (starts Colima itself) a
 `restart: unless-stopped` policy keeps it alive between logins, and `colima start` is a fast no-op
 if Colima's already running.
 
-**Re-run `./scripts/deploy` after any change you want reflected at runtime** — services never read
+The two plists are checked-in templates containing an `@CRATE_HOME@` placeholder — launchd can't
+expand `$HOME` or `~` itself, so `docker/deploy` substitutes the real path in when it renders them
+into `~/Library/LaunchAgents`. It reads `CRATE_HOME` from `docker/.env`, defaulting to `$HOME` of
+whoever runs the script; only set it explicitly if you're deploying for a different user.
+
+**Re-run `./docker/deploy` after any change you want reflected at runtime** — services never read
 the repo directly.
 
 ### 3. Configure Ghostty
@@ -96,13 +103,13 @@ and you should land at `crate@crate:~$`.
 | Start container manually | `docker compose up -d` (from `~/dev/crate`) |
 | Stop container | `docker compose down` |
 | Restart container | `docker compose restart` |
-| Rebuild image | `./scripts/crate-rebuild` then `docker compose up -d` |
-| Push repo changes to runtime | `./scripts/deploy` |
+| Rebuild image | `./docker/crate-rebuild` then `docker compose up -d` |
+| Push repo changes to runtime | `./docker/deploy` |
 
 Home directory is persisted via `~/docker-home` volume mount. `~/dev` is mounted at `/home/crate/dev`.
 
-> **Note:** Build via `./scripts/crate-build` / `crate-rebuild` (thin wrappers over `docker compose build`).
-> They pick up build args and the corp CA (`CORP_CA_B64`) from `.env`. `USERNAME` is pinned in
+> **Note:** Build via `./docker/crate-build` / `crate-rebuild` (thin wrappers over `docker compose build`).
+> They pick up build args and the corp CA (`CORP_CA_B64`) from `docker/.env`. `USERNAME` is pinned in
 > `compose.yaml`, so there's no risk of leaking shell env vars as build args.
 
 ---
@@ -166,11 +173,11 @@ On a clean machine (home Mac, CI) leave it empty and the build skips it.
 #    → save to ~/docker-home/.corp-ca.pem
 #
 # 2. Refresh the .env line (run from the crate repo dir):
-sed -i '' '/^CORP_CA_B64=/d' .env
-printf 'CORP_CA_B64=%s\n' "$(base64 < ~/docker-home/.corp-ca.pem | tr -d '\n')" >> .env
+sed -i '' '/^CORP_CA_B64=/d' docker/.env
+printf 'CORP_CA_B64=%s\n' "$(base64 < ~/docker-home/.corp-ca.pem | tr -d '\n')" >> docker/.env
 
 # 3. Rebuild:
-docker compose build
+docker compose -f docker/compose.yaml build
 ```
 
 Cache note: the cert layer only rebuilds when the `CORP_CA_B64` value actually changes

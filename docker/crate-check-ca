@@ -2,9 +2,9 @@
 # Diagnose a corporate CA cert bundle for use with crate-build.
 #
 # Usage:
-#   ./scripts/crate-check-ca                            # uses $CRATE_CORP_CA or ~/docker-home/.corp-ca.pem
-#   ./scripts/crate-check-ca /path/to/your-ca.pem       # explicit path
-#   CRATE_CORP_CA_TEST_URL=... ./scripts/crate-check-ca # override the MITM test endpoint
+#   ./docker/crate-check-ca                            # uses $CRATE_CORP_CA or ~/docker-home/.corp-ca.pem
+#   ./docker/crate-check-ca /path/to/your-ca.pem       # explicit path
+#   CRATE_CORP_CA_TEST_URL=... ./docker/crate-check-ca # override the MITM test endpoint
 #
 # Exits 0 if everything passes, 1 if any check fails.
 
@@ -104,7 +104,7 @@ section "summary"
 echo "  passed: $PASS"
 echo "  failed: $FAIL"
 if [ "$FAIL" -eq 0 ]; then
-    echo "  next:   ./scripts/crate-build"
+    echo "  next:   ./docker/crate-build"
     exit 0
 else
     echo "  fix the above before rebuilding"

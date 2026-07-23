@@ -5,7 +5,7 @@ set -euo pipefail
 CRATE_IMAGE="${CRATE_IMAGE:-crate:latest}"
 
 if ! docker image inspect "$CRATE_IMAGE" >/dev/null 2>&1; then
-    echo "(no image $CRATE_IMAGE yet — run ./scripts/crate-build first)"
+    echo "(no image $CRATE_IMAGE yet — run ./docker/crate-build first)"
     exit 1
 fi
 

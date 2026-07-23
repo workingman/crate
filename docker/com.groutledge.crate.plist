@@ -4,12 +4,16 @@
     LaunchAgent: com.groutledge.crate
     Starts the crate singleton container at login and keeps it running.
 
-    This file is the SOURCE template. It is installed into ~/Library/LaunchAgents
-    by `scripts/deploy`, which also materializes the runtime artifacts it points
-    at (~/.local/opt/crate, ~/.local/bin/docker-bin). The agent NEVER reads the
-    git repo (~/dev/crate) — only the deployed copies under ~/.local.
+    This file is the SOURCE template. `@CRATE_HOME@` is a placeholder — launchd
+    plists can't expand $HOME or ~ themselves, so `docker/deploy` substitutes it
+    with the real path (from CRATE_HOME in docker/.env, default $HOME) when it
+    renders this into ~/Library/LaunchAgents. The checked-in file is never
+    edited directly; only the rendered copy has a real path. It also
+    materializes the runtime artifacts this plist points at (~/.local/opt/crate,
+    ~/.local/bin/docker-bin). The agent NEVER reads the git repo (~/dev/crate)
+    — only the deployed copies under ~/.local.
 
-    Install/reload is handled by `scripts/deploy`. Manual uninstall:
+    Install/reload is handled by `docker/deploy`. Manual uninstall:
         launchctl unload ~/Library/LaunchAgents/com.groutledge.crate.plist
         rm ~/Library/LaunchAgents/com.groutledge.crate.plist
 
@@ -38,10 +42,10 @@
              for the daemon (Colima) and bring the container up. up -d is
              idempotent: no-op if already running. -->
         <string>
-            DOCKER="$(/Users/groutledge/.local/bin/docker-bin)" || exit 1;
+            DOCKER="$(@CRATE_HOME@/.local/bin/docker-bin)" || exit 1;
             until "$DOCKER" info &gt;/dev/null 2&gt;&amp;1; do sleep 2; done;
             "$DOCKER" network create crate-net &gt;/dev/null 2&gt;&amp;1 || true;
-            cd /Users/groutledge/.local/opt/crate &amp;&amp; "$DOCKER" compose up -d
+            cd @CRATE_HOME@/.local/opt/crate &amp;&amp; "$DOCKER" compose up -d
         </string>
     </array>
 

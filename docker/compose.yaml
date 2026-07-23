@@ -9,7 +9,7 @@ networks:
 services:
   crate:
     build:
-      context: .
+      context: ..
       args:
         UID: ${UID}
         GID: ${GID}

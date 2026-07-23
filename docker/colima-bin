@@ -4,7 +4,7 @@
 # Same rationale as docker-bin: launchd runs with a minimal PATH that usually
 # omits Homebrew. Probes known locations, falls back to PATH.
 #
-# Usage:  COLIMA="$(/path/to/scripts/colima-bin)" || exit 1
+# Usage:  COLIMA="$(/path/to/docker/colima-bin)" || exit 1
 set -euo pipefail
 
 for candidate in /opt/homebrew/bin/colima /usr/local/bin/colima; do

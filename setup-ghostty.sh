@@ -6,7 +6,7 @@
 # Multiple windows share the same container with no port conflicts.
 #
 # Ghostty points at the DEPLOYED entry point (~/.local/bin/crate-connect), not the
-# repo — run `scripts/deploy` first. See AGENTS.md "Source vs. Runtime".
+# repo — run `docker/deploy` first. See AGENTS.md "Source vs. Runtime".
 #
 # Prereq:  brew install --cask ghostty   (or install into ~/Applications via --appdir)
 # Refuses to overwrite an existing config.
@@ -19,7 +19,7 @@ connect_script="$HOME/.local/bin/crate-connect"
 
 if [ ! -x "$connect_script" ]; then
     echo "ERROR: $connect_script not found or not executable." >&2
-    echo "       Run ./scripts/deploy first to materialize the runtime entry points." >&2
+    echo "       Run ./docker/deploy first to materialize the runtime entry points." >&2
     exit 1
 fi
 
@@ -64,7 +64,7 @@ echo "  ghostty: ${ghostty_app:-NOT INSTALLED — run: brew install --cask ghost
 echo ""
 echo "Next steps:"
 echo "  1. Deploy runtime artifacts + install/reload the launchd agent:"
-echo "       $script_dir/scripts/deploy"
+echo "       $script_dir/docker/deploy"
 echo "  2. Open Ghostty. crate-connect starts the container if needed."
 echo "     You should land at crate@crate:~\$"
 echo ""

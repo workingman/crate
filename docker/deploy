@@ -9,13 +9,18 @@
 #   ~/.local/bin/{docker-bin,colima-bin,crate-connect}  entry points + helpers (on PATH)
 #   ~/.local/opt/crate/{compose.yaml,.env}    runtime config the services use
 #   ~/.local/opt/crate/.deployed-from         provenance: git SHA + timestamp
-#   ~/Library/LaunchAgents/com.groutledge.colima.plist  (installed + reloaded)
-#   ~/Library/LaunchAgents/com.groutledge.crate.plist   (installed + reloaded)
+#   ~/Library/LaunchAgents/com.groutledge.colima.plist  (rendered + installed)
+#   ~/Library/LaunchAgents/com.groutledge.crate.plist   (rendered + installed)
 #
-# Usage: ./scripts/deploy
+# The two plists are templates containing an @CRATE_HOME@ placeholder — launchd
+# can't expand $HOME or ~ itself. This script substitutes it with CRATE_HOME
+# from docker/.env, defaulting to $HOME, when rendering them into place.
+#
+# Usage: ./docker/deploy
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+DOCKER_DIR="$REPO_DIR/docker"
 BIN_DIR="$HOME/.local/bin"
 OPT_DIR="$HOME/.local/opt/crate"
 AGENTS_DIR="$HOME/Library/LaunchAgents"
@@ -26,16 +31,25 @@ echo "==> Deploying crate runtime from $REPO_DIR"
 
 mkdir -p "$BIN_DIR" "$OPT_DIR" "$AGENTS_DIR"
 
+# --- deploy-time config ---
+# Extract just CRATE_HOME rather than sourcing the whole .env file: it also
+# holds UID/GID (compose build args), and UID is a readonly bash builtin —
+# sourcing the file directly would fail with "UID: readonly variable".
+if [ -f "$DOCKER_DIR/.env" ]; then
+    CRATE_HOME="$(grep -E '^CRATE_HOME=' "$DOCKER_DIR/.env" | tail -1 | cut -d= -f2-)"
+fi
+CRATE_HOME="${CRATE_HOME:-$HOME}"
+
 # --- entry points + helpers ---
-install -m 0755 "$REPO_DIR/scripts/docker-bin" "$BIN_DIR/docker-bin"
-install -m 0755 "$REPO_DIR/scripts/colima-bin" "$BIN_DIR/colima-bin"
-install -m 0755 "$REPO_DIR/crate-connect"      "$BIN_DIR/crate-connect"
+install -m 0755 "$DOCKER_DIR/docker-bin"   "$BIN_DIR/docker-bin"
+install -m 0755 "$DOCKER_DIR/colima-bin"   "$BIN_DIR/colima-bin"
+install -m 0755 "$DOCKER_DIR/crate-connect" "$BIN_DIR/crate-connect"
 echo "    bin:  $BIN_DIR/{docker-bin,colima-bin,crate-connect}"
 
 # --- runtime config ---
-install -m 0644 "$REPO_DIR/compose.yaml" "$OPT_DIR/compose.yaml"
-if [ -f "$REPO_DIR/.env" ]; then
-    install -m 0600 "$REPO_DIR/.env" "$OPT_DIR/.env"
+install -m 0644 "$DOCKER_DIR/compose.yaml" "$OPT_DIR/compose.yaml"
+if [ -f "$DOCKER_DIR/.env" ]; then
+    install -m 0600 "$DOCKER_DIR/.env" "$OPT_DIR/.env"
     echo "    opt:  $OPT_DIR/{compose.yaml,.env}"
 else
     echo "    opt:  $OPT_DIR/compose.yaml  (no .env in repo — skipped)"
@@ -54,18 +68,25 @@ git -C "$REPO_DIR" diff --quiet 2>/dev/null || DIRTY=" (dirty)"
 echo "    stamp: $SHA$DIRTY -> $OPT_DIR/.deployed-from"
 
 # --- launchd agents ---
+# Render the @CRATE_HOME@ placeholder into a real path. The checked-in
+# template in the repo is never touched — only the installed copy is concrete.
+render_plist() {
+    sed "s#@CRATE_HOME@#$CRATE_HOME#g" "$1" > "$2"
+    chmod 0644 "$2"
+}
+
 # Colima first (bottom of the boot chain), then crate. Order here doesn't
 # matter to launchd itself — both are independent RunAtLoad agents — but it
 # matters for reading this script top-to-bottom in the same order things boot.
-install -m 0644 "$REPO_DIR/$COLIMA_PLIST" "$AGENTS_DIR/$COLIMA_PLIST"
+render_plist "$DOCKER_DIR/$COLIMA_PLIST" "$AGENTS_DIR/$COLIMA_PLIST"
 launchctl unload "$AGENTS_DIR/$COLIMA_PLIST" 2>/dev/null || true
 launchctl load -w "$AGENTS_DIR/$COLIMA_PLIST"
-echo "    agent: reloaded $AGENTS_DIR/$COLIMA_PLIST"
+echo "    agent: reloaded $AGENTS_DIR/$COLIMA_PLIST (CRATE_HOME=$CRATE_HOME)"
 
-install -m 0644 "$REPO_DIR/$PLIST" "$AGENTS_DIR/$PLIST"
+render_plist "$DOCKER_DIR/$PLIST" "$AGENTS_DIR/$PLIST"
 launchctl unload "$AGENTS_DIR/$PLIST" 2>/dev/null || true
 launchctl load -w "$AGENTS_DIR/$PLIST"
-echo "    agent: reloaded $AGENTS_DIR/$PLIST"
+echo "    agent: reloaded $AGENTS_DIR/$PLIST (CRATE_HOME=$CRATE_HOME)"
 
 echo "==> Done. Runtime is decoupled from the repo."
 if [ -n "$DIRTY" ]; then

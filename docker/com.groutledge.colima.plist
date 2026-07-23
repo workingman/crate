@@ -24,7 +24,13 @@
     manually. If you use a named profile via colima's "profile" flag, add
     that flag and its value to the ProgramArguments string below.
 
-    Install/reload is handled by crate's `scripts/deploy`. Manual uninstall:
+    `@CRATE_HOME@` is a placeholder — launchd plists can't expand $HOME or ~
+    themselves, so `docker/deploy` substitutes it with the real path (from
+    CRATE_HOME in docker/.env, default $HOME) when it renders this into
+    ~/Library/LaunchAgents. The checked-in file is never edited directly; only
+    the rendered copy has a real path.
+
+    Install/reload is handled by crate's `docker/deploy`. Manual uninstall:
         launchctl unload ~/Library/LaunchAgents/com.groutledge.colima.plist
         rm ~/Library/LaunchAgents/com.groutledge.colima.plist
 -->
@@ -38,7 +44,7 @@
         <string>/bin/bash</string>
         <string>-c</string>
         <string>
-            COLIMA="$(/Users/groutledge/.local/bin/colima-bin)" || exit 1;
+            COLIMA="$(@CRATE_HOME@/.local/bin/colima-bin)" || exit 1;
             "$COLIMA" start
         </string>
     </array>

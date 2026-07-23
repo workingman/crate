@@ -21,13 +21,29 @@ for self-contained deployment roots (mirrors system `/opt`).
 
 ### Deploy flow
 
-`scripts/deploy` materializes the runtime subset from the repo into `~/.local`,
+`docker/deploy` materializes the runtime subset from the repo into `~/.local`,
 stamps the git SHA into `~/.local/opt/crate/.deployed-from`, installs/reloads the
-launchd agent. Runtime never reads the repo directly.
+launchd agents. Runtime never reads the repo directly.
 
-- Edit repo → run `scripts/deploy` to push changes into runtime.
+- Edit repo → run `docker/deploy` to push changes into runtime.
 - Use **copies, not symlinks** — true decoupling is the whole point. The SHA
   stamp is how you detect "repo changed but not deployed" drift.
+
+### Image vs. Docker implementation
+
+Repo root is the crate **image** — Dockerfile, entrypoint, dotfiles — and has zero
+knowledge of how it's launched (no Docker/Colima/launchd references). Everything
+about *running* the image lives under `docker/`: compose.yaml, docker-bin/colima-bin,
+crate-connect, deploy, the build wrappers, and the two launchd plist templates. This
+split means the image itself is portable to any container runtime; only `docker/`
+is Docker/Colima-specific.
+
+The two plists (`docker/com.groutledge.{crate,colima}.plist`) are checked-in
+templates with an `@CRATE_HOME@` placeholder — launchd can't expand `$HOME`/`~`
+itself. `docker/deploy` reads `CRATE_HOME` from `docker/.env` (default `$HOME`)
+and renders the real path in when installing into `~/Library/LaunchAgents`. Never
+hand-edit a hardcoded path into the checked-in templates — put it in `docker/.env`
+instead.
 
 ## Container Changes
 

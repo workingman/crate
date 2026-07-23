@@ -14,9 +14,9 @@ SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTAINER=crate
 
 # Resolve docker-bin: works whether running deployed (~/.local/bin, alongside
-# self) or straight from the repo (scripts/). Falls back to PATH.
+# self) or straight from the repo (docker/, also alongside self). Falls back to PATH.
 DOCKER_BIN=""
-for d in "$SELF_DIR" "$SELF_DIR/scripts" "$HOME/.local/bin"; do
+for d in "$SELF_DIR" "$HOME/.local/bin"; do
     if [ -x "$d/docker-bin" ]; then DOCKER_BIN="$d/docker-bin"; break; fi
 done
 if [ -n "$DOCKER_BIN" ]; then

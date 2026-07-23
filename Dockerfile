@@ -183,7 +183,7 @@ RUN npm install -g --omit=dev @anthropic-ai/claude-code opencode-ai
 COPY xdg-open /usr/local/bin/xdg-open
 RUN chmod 0755 /usr/local/bin/xdg-open
 
-COPY scripts/mem-check /usr/local/bin/mem-check
+COPY mem-check /usr/local/bin/mem-check
 RUN chmod 0755 /usr/local/bin/mem-check
 
 RUN mkdir -p /etc/skel-devbox

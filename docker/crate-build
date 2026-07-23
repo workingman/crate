@@ -4,7 +4,7 @@
 # compose.yaml. See README "Corporate CA cert" to (re)generate CORP_CA_B64.
 set -euo pipefail
 
-CRATE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DOCKER="$("$CRATE_DIR/scripts/docker-bin")"
+DOCKER_DIR="$(cd "$(dirname "$0")" && pwd)"
+DOCKER="$("$DOCKER_DIR/docker-bin")"
 
-exec "$DOCKER" compose -f "$CRATE_DIR/compose.yaml" build "$@"
+exec "$DOCKER" compose -f "$DOCKER_DIR/compose.yaml" build "$@"

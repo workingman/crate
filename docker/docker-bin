@@ -8,7 +8,7 @@
 # symlink whose target is gone), and falls back to PATH. Runtime-agnostic:
 # works for Colima, Docker Desktop, or anything else that drops a docker binary.
 #
-# Usage:  DOCKER="$(/path/to/scripts/docker-bin)" || exit 1
+# Usage:  DOCKER="$(/path/to/docker/docker-bin)" || exit 1
 set -euo pipefail
 
 for candidate in /opt/homebrew/bin/docker /usr/local/bin/docker; do

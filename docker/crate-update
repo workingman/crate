@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Pull latest base image + full no-cache rebuild + show before/after version delta.
+set -euo pipefail
+
+DOCKER_DIR="$(cd "$(dirname "$0")" && pwd)"
+DOCKER="$("$DOCKER_DIR/docker-bin")"
+
+echo "=== current image versions ==="
+"$DOCKER_DIR/crate-versions" 2>&1 || echo "(no prior image; first-time build)"
+echo
+
+echo "=== building with --pull --no-cache ==="
+"$DOCKER" compose -f "$DOCKER_DIR/compose.yaml" build --pull --no-cache
+echo
+
+echo "=== new image versions ==="
+"$DOCKER_DIR/crate-versions"
